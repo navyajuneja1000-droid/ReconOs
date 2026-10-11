@@ -14,7 +14,7 @@ import { formatINR, formatCompactINR } from '../utils/reconciliationEngine';
 
 export const RoiCalculatorView: React.FC = () => {
   const [annualGmvCr, setAnnualGmvCr] = useState<number>(48); // ₹48 Cr
-  const [leakagePct, setLeakagePct] = useState<number>(0.65); // 0.65% standard
+  const [leakagePct, setLeakagePct] = useState<number>(0.65); // inside the 0.3–1.2% band; basis shown under the slider
   const [selectedTier, setSelectedTier] = useState<'STARTER' | 'GROWTH' | 'SCALE'>('GROWTH');
 
   const gmvRupees = annualGmvCr * 10000000;
@@ -110,9 +110,16 @@ export const RoiCalculatorView: React.FC = () => {
               />
               <div className="flex justify-between text-[10px] text-slate-500 mt-1">
                 <span>0.30% (Best Case)</span>
-                <span>0.65% (ReconOS Industry Benchmark)</span>
+                <span>0.65% (Default)</span>
                 <span>1.20% (High Complexity)</span>
               </div>
+              <p className="text-[11px] leading-relaxed text-slate-400 mt-3 border-l-2 border-amber-500/40 pl-2.5">
+                <span className="font-semibold text-slate-300">Where 0.65% comes from:</span>{' '}
+                Industry estimates put 0.3–1.2% of online GMV in settlement breaks that are never explained:
+                MDR charged above contract, GST-on-MDR errors, short or missing settlements and unmatched refunds.
+                The slider covers that range. The default of 0.65% sits below the 0.75% midpoint on purpose, so the
+                ROI shown here is conservative. Set it to whatever your own reconciliation shows.
+              </p>
             </div>
 
             <div>

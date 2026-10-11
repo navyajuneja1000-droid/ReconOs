@@ -11,7 +11,6 @@ import {
   HelpCircle,
   Calculator,
   ChevronDown,
-  Bot,
   Download
 } from 'lucide-react';
 import { ReconciliationMetrics } from '../types/recon';
@@ -25,8 +24,7 @@ export type NavTab =
   | 'ingestion' 
   | 'audit-report' 
   | 'accounting'
-  | 'pricing'
-  | 'claude-export';
+  | 'pricing';
 
 interface NavbarProps {
   activeTab: NavTab;
@@ -86,19 +84,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => setActiveTab('claude-export')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 font-medium rounded text-xs transition border ${
-              activeTab === 'claude-export'
-                ? 'bg-purple-600 text-white border-purple-400 shadow-sm shadow-purple-900/50'
-                : 'bg-purple-950/40 hover:bg-purple-900/60 text-purple-200 border-purple-500/30'
-            }`}
-          >
-            <Bot className="w-3.5 h-3.5 text-purple-400" />
-            <span>Share with Claude</span>
-            <span className="bg-purple-500/30 text-purple-200 text-[10px] px-1.5 py-0.2 rounded font-mono">Export</span>
-          </button>
-
           <button
             onClick={onOpenTour}
             className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-medium rounded text-xs transition shadow-sm shadow-emerald-900/30"
@@ -261,20 +246,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           Business Model & ROI
         </button>
 
-        <button
-          onClick={() => setActiveTab('claude-export')}
-          className={`py-2.5 px-3 border-b-2 flex items-center gap-1.5 whitespace-nowrap transition ${
-            activeTab === 'claude-export'
-              ? 'border-purple-500 text-purple-300 bg-purple-950/30'
-              : 'border-transparent text-purple-400/80 hover:text-purple-200 hover:border-purple-800'
-          }`}
-        >
-          <Bot className="w-3.5 h-3.5 text-purple-400" />
-          <span>Export for Claude</span>
-          <span className="bg-purple-500/20 text-purple-300 text-[9px] px-1.5 py-0.2 rounded font-mono font-bold">
-            Docs & Code
-          </span>
-        </button>
       </div>
     </header>
   );

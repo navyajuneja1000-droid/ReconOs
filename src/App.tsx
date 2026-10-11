@@ -12,7 +12,6 @@ import { DataIngestionView } from './components/DataIngestionView';
 import { AuditReportView } from './components/AuditReportView';
 import { AccountingExportView } from './components/AccountingExportView';
 import { RoiCalculatorView } from './components/RoiCalculatorView';
-import { ClaudeExportView } from './components/ClaudeExportView';
 import { InteractiveTourModal } from './components/InteractiveTourModal';
 import { TransactionDetailModal } from './components/TransactionDetailModal';
 import { DisputeModal } from './components/DisputeModal';
@@ -30,7 +29,7 @@ import {
   generateAuditSummary, 
   repriceTransaction 
 } from './utils/reconciliationEngine';
-import { Sparkles, Info, ShieldCheck, CheckCircle2, Bot } from 'lucide-react';
+import { Sparkles, Info, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
@@ -128,14 +127,6 @@ export default function App() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setActiveTab('claude-export')}
-            className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5 shadow-sm"
-          >
-            <Bot className="w-3.5 h-3.5" />
-            <span>Export for Claude (Files & Code)</span>
-          </button>
-
-          <button
             onClick={() => setIsTourOpen(true)}
             className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded text-xs transition flex items-center gap-1.5 shadow-sm"
           >
@@ -230,10 +221,6 @@ export default function App() {
         {activeTab === 'pricing' && (
           <RoiCalculatorView />
         )}
-
-        {activeTab === 'claude-export' && (
-          <ClaudeExportView />
-        )}
       </main>
 
       {/* Footer */}
@@ -249,10 +236,6 @@ export default function App() {
 
           <div className="flex items-center gap-4 text-slate-400">
             <button onClick={() => setIsTourOpen(true)} className="hover:text-white transition">Product Tour</button>
-            <button onClick={() => setActiveTab('claude-export')} className="text-purple-400 hover:text-purple-300 font-semibold transition flex items-center gap-1">
-              <Bot className="w-3 h-3" />
-              <span>Export for Claude</span>
-            </button>
             <button onClick={() => setActiveTab('rate-card')} className="hover:text-white transition">Rate-Card Engine</button>
             <button onClick={() => setActiveTab('audit-report')} className="hover:text-white transition">Audit Report</button>
             <button onClick={() => setActiveTab('pricing')} className="hover:text-white transition">SaaS Model</button>
