@@ -1,0 +1,6 @@
+{
+  "name": "ReconOS - Multi-Gateway Settlement Reconciliation",
+  "description": "Automated transaction-level 3-way reconciliation (Order to PG Settlement to Bank Credit), rate-card re-pricing engine, and exception recovery for mid-market merchants.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
