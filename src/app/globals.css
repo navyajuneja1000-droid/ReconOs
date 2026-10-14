@@ -1,26 +1,117 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Palette: cool slip-paper ground, indigo ink, and the violet of an Indian office rubber stamp. */
+@theme {
+  --color-paper: #eef2f0;
+  --color-sheet: #ffffff;
+  --color-ink: #17203b;
+  --color-ink-2: #3a4460;
+  --color-muted: #5f6878;
+  --color-rule: #d3dad7;
+  --color-rule-2: #e4e9e7;
+  --color-stamp: #5a3dbd;
+  --color-stamp-soft: #ece8fb;
+  --color-amber: #9a5b00;
+  --color-amber-soft: #fbf0dc;
+  --color-moss: #1f6f4f;
+  --color-moss-soft: #e2f1ea;
+  --font-sans: "Schibsted Grotesk Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-stamp);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.figure {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* the one decorative flourish: a stamped total */
+.stamp {
+  border: 2px solid var(--color-stamp);
+  color: var(--color-stamp);
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 3px var(--color-sheet), inset 0 0 0 4px color-mix(in srgb, var(--color-stamp) 55%, transparent);
+  transform: rotate(-2.5deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stamp-in {
+    animation: stamp-in 420ms cubic-bezier(0.2, 0.9, 0.2, 1.2) both;
+  }
+  @keyframes stamp-in {
+    from { opacity: 0; transform: rotate(-9deg) scale(1.25); }
+    to { opacity: 1; transform: rotate(-2.5deg) scale(1); }
+  }
+}
+
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.stamp .figure {
+  font-variant-numeric: proportional-nums;
+}
+
+/* Dark theme: same roles, re-tuned so the stamp violet and amber stay legible on deep indigo. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-paper: #0f1420;
+    --color-sheet: #171e2d;
+    --color-ink: #e7ebf3;
+    --color-ink-2: #c4cbd9;
+    --color-muted: #8f99ab;
+    --color-rule: #2b3448;
+    --color-rule-2: #222a3b;
+    --color-stamp: #a993ff;
+    --color-stamp-soft: #29224d;
+    --color-amber: #f1b65e;
+    --color-amber-soft: #392b12;
+    --color-moss: #6fd1a5;
+    --color-moss-soft: #14302a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --color-paper: #0f1420;
+  --color-sheet: #171e2d;
+  --color-ink: #e7ebf3;
+  --color-ink-2: #c4cbd9;
+  --color-muted: #8f99ab;
+  --color-rule: #2b3448;
+  --color-rule-2: #222a3b;
+  --color-stamp: #a993ff;
+  --color-stamp-soft: #29224d;
+  --color-amber: #f1b65e;
+  --color-amber-soft: #392b12;
+  --color-moss: #6fd1a5;
+  --color-moss-soft: #14302a;
+  color-scheme: dark;
+}
+
+.gutter {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+@media (min-width: 640px) {
+  .gutter {
+    padding-left: max(24px, env(safe-area-inset-left, 0px));
+    padding-right: max(24px, env(safe-area-inset-right, 0px));
+  }
 }

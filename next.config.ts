@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
+// Static export: the whole app is HTML/JS/CSS. Files are processed in the browser and never sent to a server.
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  output: "export",
+  images: { unoptimized: true },
   turbopack: {
     rules: {
       "*.css": {
