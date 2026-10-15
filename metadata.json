@@ -1,6 +1,8 @@
 {
-  "name": "ReconOS - Multi-Gateway Settlement Reconciliation",
-  "description": "Automated transaction-level 3-way reconciliation (Order to PG Settlement to Bank Credit), rate-card re-pricing engine, and exception recovery for mid-market merchants.",
+  "name": "ReconOS",
+  "description": "Finds the money a D2C brand's courier and payment gateway owe it, by matching Shopify, Shiprocket, Razorpay and bank files in the browser.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

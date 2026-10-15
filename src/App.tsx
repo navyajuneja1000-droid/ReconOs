@@ -1,269 +1,124 @@
-import React, { useState, useMemo } from 'react';
-import confetti from 'canvas-confetti';
-import { 
-  Navbar, 
-  NavTab 
-} from './components/Navbar';
-import { DashboardView } from './components/DashboardView';
-import { ThreeWayMatchView } from './components/ThreeWayMatchView';
-import { RateCardEngineView } from './components/RateCardEngineView';
-import { ExceptionWorkspaceView } from './components/ExceptionWorkspaceView';
-import { DataIngestionView } from './components/DataIngestionView';
-import { AuditReportView } from './components/AuditReportView';
-import { AccountingExportView } from './components/AccountingExportView';
-import { RoiCalculatorView } from './components/RoiCalculatorView';
-import { InteractiveTourModal } from './components/InteractiveTourModal';
-import { TransactionDetailModal } from './components/TransactionDetailModal';
-import { DisputeModal } from './components/DisputeModal';
+import React, { useEffect, useMemo, useState } from "react";
+import { generateSample } from "./sample/generate";
+import { intakeTable, isReady, runAuditFull, type Intake } from "./engine/intake";
+import { buildTrail } from "./engine/trail";
+import { DEFAULT_SETTINGS } from "./engine/types";
+import { Navbar, type Tab, TABS } from "./components/Navbar";
+import { OverviewView } from "./components/OverviewView";
+import { DashboardView } from "./components/DashboardView";
+import { UploadView, type TrayItem } from "./components/UploadView";
+import { OrderTrailView } from "./components/OrderTrailView";
+import { LeaksView } from "./components/LeaksView";
+import { FeeCheckView } from "./components/FeeCheckView";
+import { ReportView } from "./components/ReportView";
+import { PricingView } from "./components/PricingView";
 
-import { 
-  INITIAL_RATE_CARDS, 
-  INITIAL_TRANSACTIONS 
-} from './data/mockData';
-import { 
-  CanonicalTransaction, 
-  RateCardRule 
-} from './types/recon';
-import { 
-  calculateMetrics, 
-  generateAuditSummary, 
-  repriceTransaction 
-} from './utils/reconciliationEngine';
-import { Sparkles, Info, ShieldCheck, CheckCircle2 } from 'lucide-react';
+export interface Rates {
+  feePct: number;
+  premiumPct: number;
+  gstPct: number;
+  codGraceDays: number;
+}
+
+export type ViewCtx = {
+  result: ReturnType<typeof runAuditFull>["result"];
+  data: ReturnType<typeof runAuditFull>["data"];
+  trail: ReturnType<typeof buildTrail>;
+  source: "sample" | "files";
+  brandName: string;
+  setTab: (t: Tab) => void;
+};
+
+const tabFromHash = (): Tab => {
+  const h = window.location.hash.replace("#", "") as Tab;
+  return TABS.some((t) => t.id === h) ? h : "overview";
+};
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
-  const [rateCards, setRateCards] = useState<RateCardRule[]>(INITIAL_RATE_CARDS);
-  const [transactions, setTransactions] = useState<CanonicalTransaction[]>(INITIAL_TRANSACTIONS);
-  const [selectedMerchant, setSelectedMerchant] = useState<string>('Bombay Threads & Lifestyle Co. (₹48 Cr GMV)');
-  const [isTourOpen, setIsTourOpen] = useState<boolean>(false);
-  const [isReconciling, setIsReconciling] = useState<boolean>(false);
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [selectedTransaction, setSelectedTransaction] = useState<CanonicalTransaction | null>(null);
-  const [disputeTransaction, setDisputeTransaction] = useState<CanonicalTransaction | null>(null);
-  const [reconToast, setReconToast] = useState<string | null>(null);
+  const [tab, setTabState] = useState<Tab>(tabFromHash);
+  const [source, setSource] = useState<"sample" | "files">("sample");
+  const [items, setItems] = useState<TrayItem[]>([]);
+  const [brand, setBrand] = useState("");
+  const [rates, setRates] = useState<Rates>({
+    feePct: DEFAULT_SETTINGS.gatewayFeePct,
+    premiumPct: DEFAULT_SETTINGS.gatewayFeePctPremium,
+    gstPct: DEFAULT_SETTINGS.gstPct,
+    codGraceDays: DEFAULT_SETTINGS.codGraceDays,
+  });
 
-  // Compute live metrics
-  const metrics = useMemo(() => {
-    return calculateMetrics(transactions);
-  }, [transactions]);
+  useEffect(() => {
+    const on = () => setTabState(tabFromHash());
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
 
-  // Compute live audit summary
-  const auditData = useMemo(() => {
-    return generateAuditSummary(transactions, selectedMerchant.split(' (')[0]);
-  }, [transactions, selectedMerchant]);
-
-  // Handle rate card updates
-  const handleUpdateRateCards = (updatedRules: RateCardRule[]) => {
-    setRateCards(updatedRules);
-    // Recalculate transactions with new rate cards
-    const repriced = transactions.map(t => repriceTransaction(t, updatedRules));
-    setTransactions(repriced);
-    showToast('Rate cards updated! All transactions re-priced successfully.');
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    if (window.location.hash !== `#${t}`) window.history.replaceState(null, "", `#${t}`);
+    window.scrollTo({ top: 0 });
   };
 
-  // Handle single transaction update (e.g. status or owner change)
-  const handleUpdateTransaction = (updatedTxn: CanonicalTransaction) => {
-    setTransactions(prev => prev.map(t => t.id === updatedTxn.id ? updatedTxn : t));
-    showToast(`Updated ${updatedTxn.orderId}: Status → ${updatedTxn.exceptionStatus || 'Updated'}`);
-  };
+  const sample = useMemo(() => generateSample(), []);
+  const sampleIntakes = useMemo<Intake[]>(() => sample.files.map((f) => intakeTable(f.name, f.table)), [sample]);
+  const active = useMemo(() => (source === "sample" ? sampleIntakes : items.filter(isReady)), [source, sampleIntakes, items]);
 
-  const handleDisputeSent = (txnId: string) => {
-    setTransactions(prev => prev.map(t => {
-      if (t.id === txnId) {
-        return {
-          ...t,
-          exceptionStatus: 'DISPUTED_WITH_PG',
-          disputeNotes: 'Official formal claim dispatched to payment aggregator nodal cell via ReconOS.',
-        };
-      }
-      return t;
-    }));
-    showToast('Formal dispute notice dispatched to Payment Aggregator!');
-  };
+  const { result, data } = useMemo(
+    () =>
+      runAuditFull(active, {
+        asOf: source === "sample" ? sample.asOf : undefined,
+        gatewayFeePct: rates.feePct,
+        gatewayFeePctPremium: rates.premiumPct,
+        gstPct: rates.gstPct,
+        codGraceDays: rates.codGraceDays,
+      }),
+    [active, source, sample, rates],
+  );
+  const trail = useMemo(() => buildTrail(data, result), [data, result]);
+  const brandName = source === "sample" ? "Indigo Loom" : brand.trim() || "your store";
 
-  const showToast = (msg: string) => {
-    setReconToast(msg);
-    setTimeout(() => {
-      setReconToast(null);
-    }, 4000);
-  };
-
-  // Run full simulated reconciliation batch
-  const handleRunRecon = () => {
-    setIsReconciling(true);
-    setTimeout(() => {
-      // Re-price and re-evaluate
-      const repriced = transactions.map(t => repriceTransaction(t, rateCards));
-      setTransactions(repriced);
-      setIsReconciling(false);
-      confetti({
-        particleCount: 50,
-        spread: 60,
-        origin: { y: 0.8 },
-      });
-      showToast('Reconciliation Complete: 96.4% Auto-Match Rate · Zero Unsafe Matches');
-    }, 1200);
-  };
-
-  // Simulate source feeds pull
-  const handleSimulateSync = () => {
-    setIsSyncing(true);
-    setTimeout(() => {
-      setIsSyncing(false);
-      showToast('Ingestion Feeds Synced: 14,820 orders, 14,820 settlement records, 68 CBS credits updated.');
-    }, 1400);
-  };
+  const ctx: ViewCtx = { result, data, trail, source, brandName, setTab };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
-      {/* Top Guided Demo Helper Callout Banner */}
-      <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 border-b border-emerald-800/40 text-xs px-4 py-2 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-emerald-300">
-          <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>
-            <strong>ReconOS Working Model & Interactive Demo:</strong> Every screen is clickable, functional, and grounded in the PRD & Pitch Deck specifications.
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsTourOpen(true)}
-            className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded text-xs transition flex items-center gap-1.5 shadow-sm"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Start Guided Product Tour</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main App Navbar */}
+    <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
       <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        metrics={metrics}
-        onRunRecon={handleRunRecon}
-        isReconciling={isReconciling}
-        onOpenTour={() => setIsTourOpen(true)}
-        selectedMerchant={selectedMerchant}
-        setSelectedMerchant={setSelectedMerchant}
+        tab={tab}
+        setTab={setTab}
+        source={source}
+        brandName={brandName}
+        claimTotal={result.claimTotal}
+        checkTotal={result.checkTotal}
+        onBackToSample={() => setSource("sample")}
       />
 
-      {/* Toast Notification */}
-      {reconToast && (
-        <div className="fixed bottom-5 right-5 z-50 bg-slate-900 border border-emerald-500/50 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-fade-in text-xs">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span className="font-medium">{reconToast}</span>
-        </div>
-      )}
-
-      {/* Primary Content Workspace */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'dashboard' && (
-          <DashboardView
-            metrics={metrics}
-            transactions={transactions}
-            onNavigateToTab={setActiveTab}
-            onSelectTransaction={setSelectedTransaction}
-            onRunRecon={handleRunRecon}
-            isReconciling={isReconciling}
+      <main className="gutter mx-auto w-full max-w-7xl flex-1 pt-6 pb-16">
+        {tab === "overview" && <OverviewView {...ctx} />}
+        {tab === "dashboard" && <DashboardView {...ctx} />}
+        {tab === "upload" && (
+          <UploadView
+            items={items}
+            setItems={setItems}
+            brand={brand}
+            setBrand={setBrand}
+            rates={rates}
+            setRates={setRates}
+            onRun={() => { setSource("files"); setTab("dashboard"); }}
           />
         )}
-
-        {activeTab === 'three-way' && (
-          <ThreeWayMatchView
-            transactions={transactions}
-            onSelectTransaction={setSelectedTransaction}
-            onRunRecon={handleRunRecon}
-            isReconciling={isReconciling}
-          />
-        )}
-
-        {activeTab === 'rate-card' && (
-          <RateCardEngineView
-            rateCards={rateCards}
-            onUpdateRateCards={handleUpdateRateCards}
-            transactions={transactions}
-            onSelectTransaction={setSelectedTransaction}
-            onOpenDispute={setDisputeTransaction}
-          />
-        )}
-
-        {activeTab === 'exceptions' && (
-          <ExceptionWorkspaceView
-            transactions={transactions}
-            onUpdateTransaction={handleUpdateTransaction}
-            onSelectTransaction={setSelectedTransaction}
-            onOpenDispute={setDisputeTransaction}
-          />
-        )}
-
-        {activeTab === 'ingestion' && (
-          <DataIngestionView
-            onSimulateUpload={handleSimulateSync}
-            isSyncing={isSyncing}
-          />
-        )}
-
-        {activeTab === 'audit-report' && (
-          <AuditReportView
-            auditData={auditData}
-            transactions={transactions}
-            merchantName={selectedMerchant.split(' (')[0]}
-          />
-        )}
-
-        {activeTab === 'accounting' && (
-          <AccountingExportView
-            transactions={transactions}
-          />
-        )}
-
-        {activeTab === 'pricing' && (
-          <RoiCalculatorView />
-        )}
+        {tab === "orders" && <OrderTrailView {...ctx} />}
+        {tab === "leaks" && <LeaksView {...ctx} />}
+        {tab === "fees" && <FeeCheckView {...ctx} rates={rates} setRates={setRates} />}
+        {tab === "report" && <ReportView {...ctx} />}
+        {tab === "pricing" && <PricingView {...ctx} />}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800 bg-slate-900/60 py-6 text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-400">ReconOS</span>
-            <span>·</span>
-            <span>Multi-Gateway Settlement Reconciliation System</span>
-            <span>·</span>
-            <span className="text-emerald-500">Compliant by Design (RBI / DPDP Act)</span>
-          </div>
-
-          <div className="flex items-center gap-4 text-slate-400">
-            <button onClick={() => setIsTourOpen(true)} className="hover:text-white transition">Product Tour</button>
-            <button onClick={() => setActiveTab('rate-card')} className="hover:text-white transition">Rate-Card Engine</button>
-            <button onClick={() => setActiveTab('audit-report')} className="hover:text-white transition">Audit Report</button>
-            <button onClick={() => setActiveTab('pricing')} className="hover:text-white transition">SaaS Model</button>
-          </div>
+      <footer className="border-t border-slate-800 bg-slate-900/60">
+        <div className="gutter mx-auto flex max-w-7xl flex-col gap-2 py-6 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+          <p>
+            <span className="font-semibold text-slate-200">ReconOS</span> finds the money your courier and payment gateway owe you.
+          </p>
+          <p>Your files are checked in your browser and never uploaded.</p>
         </div>
       </footer>
-
-      {/* Interactive Tour Walkthrough Modal */}
-      <InteractiveTourModal
-        isOpen={isTourOpen}
-        onClose={() => setIsTourOpen(false)}
-        onNavigateToTab={setActiveTab}
-      />
-
-      {/* Transaction 3-Way Detail Modal */}
-      <TransactionDetailModal
-        transaction={selectedTransaction}
-        onClose={() => setSelectedTransaction(null)}
-        onOpenDispute={setDisputeTransaction}
-        onUpdateTransaction={handleUpdateTransaction}
-      />
-
-      {/* Dispute Notice Packet Modal */}
-      <DisputeModal
-        transaction={disputeTransaction}
-        onClose={() => setDisputeTransaction(null)}
-        onDisputeSent={handleDisputeSent}
-      />
     </div>
   );
 }
