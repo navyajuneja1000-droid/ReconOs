@@ -1,4 +1,5 @@
-import type { CourierRates, GatewayRates, PartnerType } from "./partners";
+import type { CourierRates, PartnerType } from "./partners";
+import { gatewayRates, type GatewayRates } from "./instruments";
 
 export type FileKind =
   | "shopify_orders"
@@ -93,6 +94,7 @@ export interface GatewayTxn {
   settlementId: string;
   utr: string;
   method: string;
+  cardType: string; // "credit", "debit" or "" when the file doesn't say
   cardNetwork: string;
   international: boolean;
 }
@@ -168,7 +170,7 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 /** Used only when a partner has no confirmed rate card (the app always asks for one). */
-export const FALLBACK_GATEWAY: GatewayRates = { standardPct: 2, upiPct: 2, premiumPct: 3, fixedFee: 0, gstPct: 18, settleDays: 3 };
+export const FALLBACK_GATEWAY: GatewayRates = gatewayRates({ card: 2, upi: 2, amex: 3, diners: 3, international: 3 }, 18, 3);
 export const FALLBACK_COURIER_DAYS = { weightDisputeDays: 7, codPayDays: 10 };
 
 export interface BucketSummary {

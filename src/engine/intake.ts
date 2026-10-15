@@ -2,6 +2,7 @@ import { detectKind, mapColumns, missingRequired, SPEC_BY_KIND, type ColumnMap, 
 import { normalise, type ParsedFile } from "./normalize";
 import { audit } from "./audit";
 import { guessPartner, PARTNERS, partnerName, partnerTypeForKind } from "./partners";
+import { methodFromFileName } from "./instruments";
 import type { AuditResult, Dataset, FileKind, Settings, Table } from "./types";
 
 export interface Intake {
@@ -10,6 +11,8 @@ export interface Intake {
   kind: FileKind | null;
   /** partner id for courier and gateway files; null until known */
   partner: string | null;
+  /** gateway files with no method column: the one method the file holds ("upi", "card", ...), or "" for a mix */
+  methodHint: string;
   headerRow: number;
   map: ColumnMap;
   missing: string[][]; // required fields still unmapped (alternatives)
@@ -17,6 +20,12 @@ export interface Intake {
 }
 
 const dataRows = (t: Table, headerRow: number) => t.slice(headerRow + 1).filter((r) => r.some((c) => String(c ?? "").trim() !== "")).length;
+
+/** Only gateway files without a method column use a hint; it's read from the file name unless set by hand. */
+function hintFor(kind: FileKind | null, map: ColumnMap, name: string, manual?: string): string {
+  if (kind !== "gateway_settlements" || map.method !== undefined) return "";
+  return manual !== undefined ? manual : methodFromFileName(name);
+}
 
 /** Courier and gateway files must say who sent them, so their findings land on the right partner. */
 export const needsPartner = (i: Pick<Intake, "kind">) => partnerTypeForKind(i.kind) !== null;
@@ -28,7 +37,7 @@ export const needsPartner = (i: Pick<Intake, "kind">) => partnerTypeForKind(i.ki
 export function intakeTable(
   name: string,
   table: Table,
-  manual?: { kind: FileKind; partner?: string | null; headerRow?: number; overrides?: ColumnMap },
+  manual?: { kind: FileKind; partner?: string | null; headerRow?: number; overrides?: ColumnMap; methodHint?: string },
 ): Intake {
   const clean = table.filter((r) => Array.isArray(r));
   if (manual) {
@@ -38,6 +47,7 @@ export function intakeTable(
     const map = mapColumns(manual.kind, clean[headerRow] ?? [], manual.overrides ?? {}, partner);
     return {
       name, table: clean, kind: manual.kind, partner, headerRow, map,
+      methodHint: hintFor(manual.kind, map, name, manual.methodHint),
       missing: missingRequired(manual.kind, map),
       rows: dataRows(clean, headerRow),
     };
@@ -66,6 +76,7 @@ export function intakeTable(
   const map = d.kind ? mapColumns(d.kind, clean[d.headerRow] ?? [], {}, partner) : d.map;
   return {
     name, table: clean, kind: d.kind, partner, headerRow: d.headerRow, map,
+    methodHint: hintFor(d.kind, map, name),
     missing: d.kind ? missingRequired(d.kind, map) : [],
     rows: dataRows(clean, d.headerRow),
   };
@@ -84,7 +95,7 @@ export function partnersIn(intakes: Intake[]): string[] {
 export function runAuditFull(intakes: Intake[], settings: Partial<Settings> = {}): { result: AuditResult; data: Dataset } {
   const ready = intakes.filter(isReady);
   const files: ParsedFile[] = ready.map((i) => ({
-    name: i.name, kind: i.kind!, partner: i.partner, table: i.table, headerRow: i.headerRow, map: i.map,
+    name: i.name, kind: i.kind!, partner: i.partner, table: i.table, headerRow: i.headerRow, map: i.map, methodHint: i.methodHint,
   }));
   const data = normalise(files);
   const groups = new Map<string, number>();

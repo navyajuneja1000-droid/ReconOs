@@ -9,6 +9,7 @@ import {
   exampleCard, gatewayFromShopify, guessPartner, isCardReady, missingRates, PARTNERS, ratesFromCards, zoneFrom,
 } from "../src/engine/partners";
 import { fieldsFor, SPEC_BY_KIND } from "../src/engine/detect";
+import { expectedFee, gatewayRates, instrumentsFor, methodFromFileName } from "../src/engine/instruments";
 
 const sample = generateSample();
 const rates: Partial<Settings> = { asOf: sample.asOf, ...ratesFromCards(sample.cards) };
@@ -104,8 +105,10 @@ describe("audit on sample data", () => {
   });
 
   it("uses each gateway's own rates for the fee check", () => {
-    // PayU's agreed rate is 1.95%. Checked at Razorpay's 2%, its normal payments must not look overcharged.
-    const r = runAudit(intakes, { ...rates, gateway: { ...rates.gateway!, payu: { ...rates.gateway!.payu, standardPct: 2.5, upiPct: 2.5 } } });
+    // with every PayU rate two points higher, none of its payments should look overcharged
+    const payu = rates.gateway!.payu;
+    const higher = { ...payu, pct: Object.fromEntries(Object.entries(payu.pct).map(([k, v]) => [k, v + 2])) as typeof payu.pct };
+    const r = runAudit(intakes, { ...rates, gateway: { ...rates.gateway!, payu: higher } });
     expect(r.findings.filter((f) => f.partner === "payu" && f.id.startsWith("fee:")).length).toBe(0);
   });
 
@@ -295,5 +298,62 @@ describe("partner library", () => {
     expect(missingRates(blank)).toEqual(["zoneC_first"]);
     expect(isCardReady(blank)).toBe(false);
     expect(missingRates({ ...ex, values: { ...ex.values, codPct: "150" } })).toEqual(["codPct"]);
+  });
+});
+
+describe("payment method rates", () => {
+  const pay = (method: string, cardType = "", cardNetwork = "", amount = 1000, international = false) => ({ method, cardType, cardNetwork, amount, international });
+  it("picks the right rate for each method", () => {
+    expect(instrumentsFor(pay("upi"))).toEqual(["upi"]);
+    expect(instrumentsFor(pay("netbanking"))).toEqual(["netbanking"]);
+    expect(instrumentsFor(pay("net_banking"))).toEqual(["netbanking"]); // Cashfree's payment_group
+    expect(instrumentsFor(pay("NB"))).toEqual(["netbanking"]); // PayU's mode
+    expect(instrumentsFor(pay("card", "debit", "visa", 2000))).toEqual(["debitLow"]);
+    expect(instrumentsFor(pay("card", "debit", "visa", 2000.5))).toEqual(["debitHigh"]);
+    expect(instrumentsFor(pay("dc", "", "MAST", 5000))).toEqual(["debitHigh"]);
+    expect(instrumentsFor(pay("card", "debit", "rupay", 5000))).toEqual(["debitRupay"]);
+    expect(instrumentsFor(pay("credit_card", "", "visa"))).toEqual(["creditVisa"]);
+    expect(instrumentsFor(pay("cc", "", "MAST"))).toEqual(["creditMastercard"]);
+    expect(instrumentsFor(pay("card", "credit", "rupay"))).toEqual(["creditRupay"]);
+    expect(instrumentsFor(pay("card", "credit", "amex"))).toEqual(["amex"]);
+    expect(instrumentsFor(pay("card", "", "diners club"))).toEqual(["diners"]);
+    expect(instrumentsFor(pay("card", "credit", "visa", 1000, true))).toEqual(["international"]);
+    expect(instrumentsFor(pay("wallet"))).toEqual(["wallet"]);
+    expect(instrumentsFor(pay("cardless_emi"))).toEqual(["emi"]);
+  });
+
+  it("checks a payment against its highest possible rate when the file doesn't say enough", () => {
+    const rates = gatewayRates({ card: 1.8, upi: 0, debitLow: 0.4, debitHigh: 0.9, debitRupay: 0, creditRupay: 1.6 });
+    // a Visa card with no credit/debit column could be a debit card (0.4%) or a credit card (1.8%)
+    const e = expectedFee(pay("card", "", "visa", 1000), rates);
+    expect(e.exact).toBe(false);
+    expect(e.fee).toBe(18);
+    expect(e.label).toMatch(/credit or debit not in the file/);
+    // a fee of 0.4% on it is fine, even though it might have been a debit card
+    expect(expectedFee(pay("card", "debit", "visa", 1000), rates).fee).toBe(4);
+  });
+
+  it("adds the fixed rupee fee for a method", () => {
+    const rates = gatewayRates({ card: 1.8, upi: 0 });
+    rates.fixed.netbanking = 5;
+    expect(expectedFee(pay("netbanking", "", "", 1000), rates).fee).toBe(23);
+  });
+
+  it("reads which method a one-method file holds from its name", () => {
+    expect(methodFromFileName("payu_upi_settlements.csv")).toBe("upi");
+    expect(methodFromFileName("Cashfree-Cards-Sep.xlsx")).toBe("card");
+    expect(methodFromFileName("netbanking_report.csv")).toBe("netbanking");
+    expect(methodFromFileName("settlements_sep.csv")).toBe("");
+    const upi = intakes.find((i) => i.name === "payu_upi_settlements.csv")!;
+    expect(upi.map.method).toBeUndefined();
+    expect(upi.methodHint).toBe("upi");
+  });
+
+  it("finds a debit card charged at the wrong ₹2,000 slab and a RuPay debit card that was charged", () => {
+    for (const note of ["debit card charged at the above-₹2,000 rate", "fee on a RuPay debit card"]) {
+      const planted = sample.planted.filter((p) => p.note === note);
+      expect(planted.length, note).toBeGreaterThan(0);
+      for (const p of planted) expect(result.findings.find((f) => f.id === p.id)?.reason, p.id).toMatch(/Debit card|RuPay debit/);
+    }
   });
 });

@@ -7,7 +7,8 @@
  * else is flagged.
  */
 import type { FileKind, Table } from "../engine/types";
-import { ZONES, zoneKey, type RateCard, type Zone } from "../engine/partners";
+import { pctKey, ZONES, zoneKey, type RateCard, type Zone } from "../engine/partners";
+import { INSTRUMENTS, type Instrument } from "../engine/instruments";
 
 export interface Planted {
   id: string;
@@ -68,11 +69,20 @@ const COURIER = {
   delhivery: { zone: { A: 32, B: 38, C: 45, D: 55, E: 68 } as Record<Zone, number>, codPct: 1.75, codMin: 35, codDays: [3, 6] },
 } as const;
 type CourierId = keyof typeof COURIER;
+/** Each gateway prices every payment method differently. */
 const GATEWAY = {
-  razorpay: { std: 2, premium: 3, settleAfter: 2, settleHour: 11 },
-  payu: { std: 1.95, premium: 3, settleAfter: 1, settleHour: 10 },
+  razorpay: {
+    rates: { upi: 1.5, debitLow: 0.4, debitHigh: 0.9, debitRupay: 0, creditVisa: 1.8, creditMastercard: 1.8, creditRupay: 1.6, amex: 3, diners: 3, international: 3.5, netbanking: 1.9, wallet: 1.9, emi: 2.5 } as Record<Instrument, number>,
+    settleAfter: 2, settleHour: 11,
+  },
+  payu: {
+    rates: { upi: 1.2, debitLow: 0.4, debitHigh: 0.85, debitRupay: 0, creditVisa: 1.75, creditMastercard: 1.75, creditRupay: 1.5, amex: 2.9, diners: 2.9, international: 3.5, netbanking: 1.8, wallet: 1.9, emi: 2.4 } as Record<Instrument, number>,
+    settleAfter: 1, settleHour: 10,
+  },
 } as const;
 type GatewayId = keyof typeof GATEWAY;
+
+const gatewayValues = (g: GatewayId) => Object.fromEntries(INSTRUMENTS.map((i) => [pctKey(i.key), GATEWAY[g].rates[i.key]]));
 
 export function sampleCards(): Record<string, RateCard> {
   const card = (partner: string, values: Record<string, number>): RateCard => ({
@@ -91,8 +101,8 @@ export function sampleCards(): Record<string, RateCard> {
     return card(id, v);
   };
   return {
-    razorpay: card("razorpay", { standardPct: 2, upiPct: 2, premiumPct: 3, fixedFee: 0, gstPct: 18, settleDays: 2 }),
-    payu: card("payu", { standardPct: 1.95, upiPct: 1.95, premiumPct: 3, fixedFee: 0, gstPct: 18, settleDays: 2 }),
+    razorpay: card("razorpay", { ...gatewayValues("razorpay"), gstPct: 18, settleDays: 2 }),
+    payu: card("payu", { ...gatewayValues("payu"), gstPct: 18, settleDays: 2 }),
     shiprocket: courier("shiprocket"),
     delhivery: courier("delhivery"),
   };
@@ -109,6 +119,7 @@ interface GenOrder {
   gateway?: GatewayId;
   payId?: string;
   method?: string;
+  cardType?: "credit" | "debit";
   network?: string;
   city: string;
 }
@@ -176,7 +187,10 @@ export function generateSample(seed = 20260914): SampleData {
     o.payId = o.gateway === "razorpay" ? `pay_${alnum(14)}` : `40${digits(14)}`;
     const r = rand();
     o.method = r < 0.6 ? "upi" : r < 0.9 ? "card" : "netbanking";
-    if (o.method === "card") o.network = rand() < 0.12 ? "amex" : pick(["visa", "mastercard", "rupay"]);
+    if (o.method === "card") {
+      o.cardType = rand() < 0.5 ? "credit" : "debit";
+      o.network = o.cardType === "credit" && rand() < 0.15 ? "amex" : pick(["visa", "mastercard", "rupay"]);
+    }
   }
 
   // partial refunds on a few Razorpay orders, matching in both systems
@@ -283,7 +297,13 @@ export function generateSample(seed = 20260914): SampleData {
   }
 
   // ───── Gateway payments ─────
-  interface Pay { order: GenOrder; gateway: GatewayId; id: string; amount: number; fee: number; tax: number; created: Date; settled: Date | null; method: string; network: string }
+  interface Pay { order: GenOrder; gateway: GatewayId; id: string; amount: number; fee: number; tax: number; created: Date; settled: Date | null; method: string; cardType: string; network: string }
+  const instrumentOf = (o: GenOrder): Instrument =>
+    o.method === "upi" ? "upi"
+    : o.method === "netbanking" ? "netbanking"
+    : o.network === "amex" ? "amex"
+    : o.cardType === "debit" ? (o.network === "rupay" ? "debitRupay" : o.total <= 2000 ? "debitLow" : "debitHigh")
+    : o.network === "visa" ? "creditVisa" : o.network === "mastercard" ? "creditMastercard" : "creditRupay";
   const pays: Pay[] = [];
   const feeOver = new Map<string, number>();
   const gstOver = new Set<string>();
@@ -291,6 +311,10 @@ export function generateSample(seed = 20260914): SampleData {
   domestic("razorpay").slice(4, 8).forEach((o) => feeOver.set(o.payId!, 3));
   domestic("razorpay").slice(12, 14).forEach((o) => gstOver.add(o.payId!));
   domestic("payu").slice(3, 5).forEach((o) => feeOver.set(o.payId!, 2.5));
+  // a debit card of ₹2,000 or less charged at the above-₹2,000 rate, and a RuPay debit card charged at all
+  const cardsOf = (g: GatewayId) => orders.filter((o) => o.gateway === g && !o.cancelled && o.method === "card" && o.created.getTime() < Date.UTC(2026, 8, 28));
+  const wrongSlab = new Set(cardsOf("razorpay").filter((o) => instrumentOf(o) === "debitLow" && o.total >= 499).slice(0, 2).map((o) => o.payId!));
+  const rupayCharged = new Set(cardsOf("payu").filter((o) => instrumentOf(o) === "debitRupay").slice(0, 1).map((o) => o.payId!));
   const missingPay = new Set([
     ...domestic("razorpay").filter((o) => o.created.getTime() > Date.UTC(2026, 8, 10)).slice(20, 22).map((o) => o.payId!),
     ...domestic("payu").filter((o) => o.created.getTime() > Date.UTC(2026, 8, 10)).slice(8, 9).map((o) => o.payId!),
@@ -303,13 +327,13 @@ export function generateSample(seed = 20260914): SampleData {
       plant({ id: `gw_missing:${o.num}`, kind: "check", amount: o.total, partner: o.gateway, note: "paid order missing from settlements" });
       continue;
     }
-    const premium = o.network === "amex";
-    let fee = r2((o.total * (premium ? g.premium : g.std)) / 100);
-    const overPct = feeOver.get(o.payId);
+    let fee = r2((o.total * g.rates[instrumentOf(o)]) / 100);
+    const overPct = wrongSlab.has(o.payId) ? g.rates.debitHigh : rupayCharged.has(o.payId) ? g.rates.debitLow : feeOver.get(o.payId);
     if (overPct) {
       const correct = fee;
       fee = r2((o.total * overPct) / 100);
-      plant({ id: `fee:${o.payId}`, kind: "claim", amount: (fee - correct) * 1.18, partner: o.gateway, note: "fee above rate card" });
+      const note = wrongSlab.has(o.payId) ? "debit card charged at the above-₹2,000 rate" : rupayCharged.has(o.payId) ? "fee on a RuPay debit card" : "fee above rate card";
+      plant({ id: `fee:${o.payId}`, kind: "claim", amount: (fee - correct) * 1.18, partner: o.gateway, note });
     }
     let tax = r2(fee * 0.18);
     if (gstOver.has(o.payId)) {
@@ -317,7 +341,7 @@ export function generateSample(seed = 20260914): SampleData {
       plant({ id: `gst:${o.payId}`, kind: "claim", amount: tax - r2(fee * 0.18), partner: o.gateway, note: "GST charged wrongly" });
     }
     const settledAt = new Date(dayStart(o.created).getTime() + g.settleAfter * DAY + g.settleHour * 3600_000);
-    pays.push({ order: o, gateway: o.gateway, id: o.payId, amount: o.total, fee, tax, created: o.created, settled: settledAt <= asOf ? settledAt : null, method: o.method!, network: o.network ?? "" });
+    pays.push({ order: o, gateway: o.gateway, id: o.payId, amount: o.total, fee, tax, created: o.created, settled: settledAt <= asOf ? settledAt : null, method: o.method!, cardType: o.cardType ?? "", network: o.network ?? "" });
   }
 
   // Razorpay refunds: matching ones plus one over-refund
@@ -473,28 +497,32 @@ export function generateSample(seed = 20260914): SampleData {
   for (const w of ws) weightTable.push([String(w.ship.order.num), w.ship.awb, w.ship.courier, dMonY(w.raised), (w.ship.slabs * 0.5).toFixed(2), w.charged.toFixed(2), w.extra.toFixed(2), w.status]);
 
   const setlOf = (g: GatewayId, d: Date | null) => (d ? setl.get(`${g}|${d.toISOString().slice(0, 10)}`) ?? null : null);
-  const rzpHead = ["entity_id", "type", "debit", "credit", "amount", "currency", "fee", "tax", "on_hold", "settled", "created_at", "settled_at", "settlement_id", "settlement_utr", "payment_id", "order_receipt", "method", "card_network"];
+  const rzpHead = ["entity_id", "type", "debit", "credit", "amount", "currency", "fee", "tax", "on_hold", "settled", "created_at", "settled_at", "settlement_id", "settlement_utr", "payment_id", "order_receipt", "method", "card_type", "card_network"];
   const rzp: Table = [rzpHead];
   for (const p of pays.filter((p) => p.gateway === "razorpay")) {
     const b = setlOf("razorpay", p.settled);
-    rzp.push([p.id, "payment", "0", r2(p.amount - p.fee - p.tax).toFixed(2), p.amount.toFixed(2), "INR", p.fee.toFixed(2), p.tax.toFixed(2), "0", p.settled ? "1" : "0", `${dmy(p.created)} ${pad(p.created.getUTCHours())}:${pad(p.created.getUTCMinutes())}:00`, p.settled ? `${dmy(p.settled)} 11:00:00` : "", b?.id ?? "", b?.utr ?? "", "", String(p.order.num), p.method, p.network]);
+    rzp.push([p.id, "payment", "0", r2(p.amount - p.fee - p.tax).toFixed(2), p.amount.toFixed(2), "INR", p.fee.toFixed(2), p.tax.toFixed(2), "0", p.settled ? "1" : "0", `${dmy(p.created)} ${pad(p.created.getUTCHours())}:${pad(p.created.getUTCMinutes())}:00`, p.settled ? `${dmy(p.settled)} 11:00:00` : "", b?.id ?? "", b?.utr ?? "", "", String(p.order.num), p.method, p.cardType, p.network]);
   }
   for (const rf of refunds) {
     const b = rf.settled <= asOf ? setlOf("razorpay", rf.settled) : null;
-    rzp.push([rf.id, "refund", rf.amount.toFixed(2), "0", rf.amount.toFixed(2), "INR", "0.00", "0.00", "0", b ? "1" : "0", `${dmy(rf.created)} 12:00:00`, b ? `${dmy(rf.settled)} 11:00:00` : "", b?.id ?? "", b?.utr ?? "", rf.pay.id, String(rf.pay.order.num), "", ""]);
+    rzp.push([rf.id, "refund", rf.amount.toFixed(2), "0", rf.amount.toFixed(2), "INR", "0.00", "0.00", "0", b ? "1" : "0", `${dmy(rf.created)} 12:00:00`, b ? `${dmy(rf.settled)} 11:00:00` : "", b?.id ?? "", b?.utr ?? "", rf.pay.id, String(rf.pay.order.num), "", "", ""]);
   }
 
-  // PayU: one row per transaction, its own column names, a status column, and net amount instead of credit/debit
-  const payuHead = ["payu_id", "txnid", "status", "mode", "card_type", "amount", "payu_fee", "payu_fee_tax", "net_amount", "txn_addedon", "settledon", "settlementUTR"];
-  const payu: Table = [payuHead];
-  const MODE: Record<string, string> = { upi: "UPI", card: "CC", netbanking: "NB" };
+  // PayU sends one file per payment method. The UPI file has no method column at all, so
+  // ReconOS reads the method from the file name; the cards and net banking file has PayU's mode
+  // (CC, DC, NB) and puts the card network in a column it calls card_type.
+  const payuUpi: Table = [["payu_id", "txnid", "status", "amount", "payu_fee", "payu_fee_tax", "net_amount", "txn_addedon", "settledon", "settlementUTR"]];
+  const payuCards: Table = [["payu_id", "txnid", "status", "mode", "card_type", "amount", "payu_fee", "payu_fee_tax", "net_amount", "txn_addedon", "settledon", "settlementUTR"]];
+  const NET: Record<string, string> = { visa: "VISA", mastercard: "MAST", rupay: "RUPAY", amex: "AMEX" };
   for (const p of pays.filter((p) => p.gateway === "payu")) {
     const b = setlOf("payu", p.settled);
-    payu.push([p.id, String(p.order.num), "captured", MODE[p.method], p.network.toUpperCase(), p.amount.toFixed(2), p.fee.toFixed(2), p.tax.toFixed(2), r2(p.amount - p.fee - p.tax).toFixed(2), ymdHms(p.created), p.settled ? ymdHms(p.settled) : "", b?.utr ?? ""]);
+    const money = [p.amount.toFixed(2), p.fee.toFixed(2), p.tax.toFixed(2), r2(p.amount - p.fee - p.tax).toFixed(2), ymdHms(p.created), p.settled ? ymdHms(p.settled) : "", b?.utr ?? ""];
+    if (p.method === "upi") payuUpi.push([p.id, String(p.order.num), "captured", ...money]);
+    else payuCards.push([p.id, String(p.order.num), "captured", p.method === "netbanking" ? "NB" : p.cardType === "debit" ? "DC" : "CC", NET[p.network] ?? "", ...money]);
   }
   // a failed attempt and a dropped one: no money moved, so they must be ignored
   orders.filter((o) => o.gateway === "payu").slice(1, 3).forEach((o, i) => {
-    payu.push([`40${digits(14)}`, String(o.num), i === 0 ? "failed" : "userCancelled", "UPI", "", o.total.toFixed(2), "0.00", "0.00", "0.00", ymdHms(new Date(o.created.getTime() - 120_000)), "", ""]);
+    payuUpi.push([`40${digits(14)}`, String(o.num), i === 0 ? "failed" : "userCancelled", o.total.toFixed(2), "0.00", "0.00", "0.00", ymdHms(new Date(o.created.getTime() - 120_000)), "", ""]);
   });
 
   const bankTable: Table = [["HDFC BANK Ltd.  Statement of account"], ["Account: INDIGO LOOM  A/C No: XXXXXXXX4821"], [], ["Date", "Narration", "Chq./Ref.No.", "Value Dt", "Withdrawal Amt.", "Deposit Amt.", "Closing Balance"]];
@@ -511,7 +539,8 @@ export function generateSample(seed = 20260914): SampleData {
     files: [
       { name: "orders_export.csv", kind: "shopify_orders", partner: null, table: shopify },
       { name: "razorpay_settlement_recon.csv", kind: "gateway_settlements", partner: "razorpay", table: rzp },
-      { name: "payu_settlement_report.csv", kind: "gateway_settlements", partner: "payu", table: payu },
+      { name: "payu_upi_settlements.csv", kind: "gateway_settlements", partner: "payu", table: payuUpi },
+      { name: "payu_cards_netbanking_settlements.csv", kind: "gateway_settlements", partner: "payu", table: payuCards },
       { name: "shiprocket_shipments.csv", kind: "courier_shipments", partner: "shiprocket", table: srShip },
       { name: "shiprocket_cod_remittance.csv", kind: "courier_cod", partner: "shiprocket", table: srCod },
       { name: "shiprocket_weight_discrepancy.csv", kind: "courier_weight", partner: "shiprocket", table: weightTable },

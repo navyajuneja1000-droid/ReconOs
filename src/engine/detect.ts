@@ -121,8 +121,10 @@ export const KIND_SPECS: KindSpec[] = [
       f("utr", "Settlement UTR", ["settlement utr", "settlement_utr", "utr"]),
       f("paymentId", "Payment ID", ["payment id", "payment_id"]),
       f("orderReceipt", "Order receipt / notes", ["order receipt", "order_receipt", "receipt", "notes", "description"]),
-      f("method", "Method", ["method", "payment method"]),
-      f("cardNetwork", "Card network", ["card network", "card_network", "network"]),
+      f("method", "Payment method", ["method", "payment method", "payment mode", "payment group", "payment instrument", "instrument type", "pay mode"]),
+      f("cardNetwork", "Card network", ["card network", "card_network", "network", "card scheme", "scheme"]),
+      // after cardNetwork, so a gateway that calls its network column "card type" (PayU) keeps it as the network
+      f("cardType", "Credit or debit", ["card type", "card_type", "card category", "card variant"]),
       f("international", "International", ["international", "is international"]),
     ],
     required: [["id", "paymentId"], ["amount", "credit"], ["fee"]],

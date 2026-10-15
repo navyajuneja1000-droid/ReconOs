@@ -1,18 +1,12 @@
 import React, { useMemo, useState } from "react";
 import type { ViewCtx } from "../App";
-import { expectedGatewayFee, gatewayRateFor } from "../engine/audit";
+import { expectedFee } from "../engine/instruments";
 import { emptyCard, isCardReady, PARTNER_BY_ID, partnerName } from "../engine/partners";
 import { FALLBACK_GATEWAY } from "../engine/types";
 import { Btn, fmtDay, inr, Panel, PanelHead } from "../ui";
 import { CardStatus, RateCardEditor } from "./RateCardEditor";
 
-const NAMES: Record<string, string> = { upi: "UPI", netbanking: "Net banking", nb: "Net banking", wallet: "Wallet", emi: "EMI", paylater: "Pay later", cc: "Credit card", dc: "Debit card" };
-
-function methodLabel(method: string, network: string) {
-  const net = network ? (network === "rupay" ? "RuPay" : network === "amex" ? "Amex" : network === "mast" ? "Mastercard" : network[0].toUpperCase() + network.slice(1)) : "";
-  if (method === "card" || method === "cc" || method === "dc") return `${NAMES[method] ?? "Card"}${net ? ` (${net})` : ""}`;
-  return NAMES[method] ?? (method ? method[0].toUpperCase() + method.slice(1) : "Other");
-}
+const NET: Record<string, string> = { visa: "Visa", mastercard: "Mastercard", rupay: "RuPay", amex: "Amex", diners: "Diners" };
 
 export function FeeCheckView({ data, result, setTab, cards, setCard }: ViewCtx) {
   const gateways = result.partners.filter((p) => p.type === "gateway" && p.files.length);
@@ -28,19 +22,18 @@ export function FeeCheckView({ data, result, setTab, cards, setCard }: ViewCtx) 
       data.gateway
         .filter((g) => g.partner === gw && g.type === "payment" && g.amount > 0)
         .map((p) => {
-          const { pct } = gatewayRateFor(p, rates);
-          const fee = expectedGatewayFee(p.amount, pct, rates);
-          const tax = Math.round(fee * rates.gstPct) / 100;
-          const variance = Math.round((p.fee + p.tax - fee - tax) * 100) / 100;
-          return { p, pct, fee, tax, variance, method: methodLabel(p.method, p.cardNetwork) };
+          const e = expectedFee(p, rates);
+          const tax = Math.round(e.fee * rates.gstPct) / 100;
+          const variance = Math.round((p.fee + p.tax - e.fee - tax) * 100) / 100;
+          return { p, pct: e.pct, fixed: e.fixed, exact: e.exact, fee: e.fee, tax, variance, method: e.label, net: NET[p.cardNetwork] ?? "" };
         }),
     [data.gateway, gw, rates],
   );
 
   const byMethod = useMemo(() => {
-    const m = new Map<string, { n: number; gross: number; billed: number; expected: number; pct: number }>();
+    const m = new Map<string, { n: number; gross: number; billed: number; expected: number; rate: string }>();
     for (const r of rows) {
-      const cur = m.get(r.method) ?? { n: 0, gross: 0, billed: 0, expected: 0, pct: r.pct };
+      const cur = m.get(r.method) ?? { n: 0, gross: 0, billed: 0, expected: 0, rate: `${r.exact ? "" : "up to "}${r.pct}%${r.fixed ? ` + ₹${r.fixed}` : ""}` };
       cur.n++; cur.gross += r.p.amount; cur.billed += r.p.fee + r.p.tax; cur.expected += r.fee + r.tax;
       m.set(r.method, cur);
     }
@@ -81,7 +74,7 @@ export function FeeCheckView({ data, result, setTab, cards, setCard }: ViewCtx) 
 
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <Panel>
-          <PanelHead title={`${name} rate card`} sub={isCardReady(card) ? "Used for every check below" : `Not confirmed, so a standard ${FALLBACK_GATEWAY.standardPct}% is used until you confirm it`} right={<CardStatus card={card} />} />
+          <PanelHead title={`${name} rate card`} sub={isCardReady(card) ? "Used for every check below" : `Not confirmed, so a standard ${FALLBACK_GATEWAY.pct.creditVisa}% is used until you confirm it`} right={<CardStatus card={card} />} />
           <div className="px-5 py-4"><RateCardEditor key={gw} card={card} onChange={setCard} compact /></div>
         </Panel>
         <Panel className="grid content-start gap-4 p-5">
@@ -90,13 +83,10 @@ export function FeeCheckView({ data, result, setTab, cards, setCard }: ViewCtx) 
             <p className="mt-1 text-3xl font-bold tabular-nums text-emerald-400">{inr(totalOver)}</p>
             <p className="text-sm text-slate-400">{off.length} of {rows.length} {name} payments</p>
           </div>
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-1 border-t border-slate-800 pt-4 text-sm">
-            <dt className="text-slate-400">Standard</dt><dd className="text-right tabular-nums">{rates.standardPct}%</dd>
-            <dt className="text-slate-400">UPI</dt><dd className="text-right tabular-nums">{rates.upiPct}%</dd>
-            <dt className="text-slate-400">Amex, Diners, international</dt><dd className="text-right tabular-nums">{rates.premiumPct}%</dd>
-            {rates.fixedFee > 0 && <><dt className="text-slate-400">Fixed fee</dt><dd className="text-right tabular-nums">{inr(rates.fixedFee, true)}</dd></>}
-            <dt className="text-slate-400">GST on fee</dt><dd className="text-right tabular-nums">{rates.gstPct}%</dd>
-          </dl>
+          <p className="border-t border-slate-800 pt-4 text-sm text-slate-300">
+            Each payment is priced at the rate for its method: UPI, debit card above or below ₹2,000, RuPay, credit card by network, Amex, Diners, international, net banking, wallet or EMI.
+            {rows.some((r) => !r.exact) && <span className="mt-2 block text-slate-400">{rows.filter((r) => !r.exact).length} payments didn't say enough (for example credit or debit), so they were checked against the highest rate they could be on. ReconOS only flags a fee that's above every possible rate.</span>}
+          </p>
           {PARTNER_BY_ID[gw]?.status === "beta" && <p className="text-xs text-slate-400">Reading {name} reports is in beta. If a fee looks wrong, check which column it came from on the Upload page.</p>}
         </Panel>
       </div>
@@ -120,7 +110,7 @@ export function FeeCheckView({ data, result, setTab, cards, setCard }: ViewCtx) 
               {byMethod.map(([k, v]) => (
                 <tr key={k}>
                   <td className="px-5 py-2">{k}</td>
-                  <td className="px-5 py-2 text-right tabular-nums text-slate-400">{v.pct}%</td>
+                  <td className="px-5 py-2 text-right tabular-nums text-slate-400">{v.rate}</td>
                   <td className="px-5 py-2 text-right tabular-nums">{v.n}</td>
                   <td className="px-5 py-2 text-right tabular-nums">{inr(v.gross)}</td>
                   <td className="px-5 py-2 text-right tabular-nums">{inr(v.billed, true)}</td>
@@ -148,7 +138,7 @@ export function FeeCheckView({ data, result, setTab, cards, setCard }: ViewCtx) 
                 <th className="px-5 py-2 text-right font-medium">Amount</th>
                 <th className="px-5 py-2 text-right font-medium">Fee billed</th>
                 <th className="px-5 py-2 text-right font-medium">GST billed</th>
-                <th className="px-5 py-2 text-right font-medium">Your rate + GST</th>
+                <th className="px-5 py-2 text-right font-medium">At your rate + GST</th>
                 <th className="px-5 py-2 text-right font-medium">Over</th>
               </tr>
             </thead>
@@ -157,7 +147,7 @@ export function FeeCheckView({ data, result, setTab, cards, setCard }: ViewCtx) 
                 <tr key={r.p.id}>
                   <td className="px-5 py-2 font-mono text-xs text-slate-300">{r.p.id}</td>
                   <td className="px-5 py-2 text-slate-300">{fmtDay(r.p.createdAt)}</td>
-                  <td className="px-5 py-2 text-slate-300">{r.method}</td>
+                  <td className="px-5 py-2 text-slate-300">{r.method}{r.net && !r.method.includes(r.net) ? ` (${r.net})` : ""}</td>
                   <td className="px-5 py-2 text-right tabular-nums">{inr(r.p.amount)}</td>
                   <td className="px-5 py-2 text-right tabular-nums">{inr(r.p.fee, true)}</td>
                   <td className="px-5 py-2 text-right tabular-nums">{inr(r.p.tax, true)}</td>

@@ -31,7 +31,7 @@ The site opens on a made-up brand (Indigo Loom) that uses Razorpay and PayU, shi
 1. COD a courier never paid, or paid short
 2. Shipping overcharges: above the rate card (by zone and weight), COD fee above the rate, return charge above the rate, charged twice, COD fee on prepaid orders, return charges on delivered orders
 3. Weight charges still open to dispute, with the last date from each courier's rate card
-4. Gateway fees above the rate card (standard, UPI and premium rates), wrong GST on fees, paid orders never settled, refund mismatches
+4. Gateway fees above the rate card, priced per payment method (UPI, debit card up to or above ₹2,000, RuPay debit, credit card by network, Amex, Diners, international, net banking, wallets, EMI, each with an optional fixed fee), wrong GST on fees, paid orders never settled, refund mismatches. When a file doesn't say enough (say, no credit/debit column), the payment is checked against the highest rate it could be on, so nothing is over-claimed. Gateways that send one file per method are supported; the method is read from the file name or chosen by hand
 5. Courier payouts and gateway settlements that never reached the bank
 
 Rate card gaps on aggregators (Shiprocket, NimbusPost, iThink) are marked Check, since their prices differ by courier.

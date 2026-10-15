@@ -3,7 +3,8 @@ import type {
   Insight, Order, PartnerSummary, Settings, Shipment,
 } from "./types";
 import { DEFAULT_SETTINGS, FALLBACK_COURIER_DAYS, FALLBACK_GATEWAY } from "./types";
-import { PARTNER_BY_ID, PARTNERS, partnerName, ZONE_LABEL, zoneFrom, type GatewayRates, type PartnerType } from "./partners";
+import { PARTNER_BY_ID, PARTNERS, partnerName, ZONE_LABEL, zoneFrom, type PartnerType } from "./partners";
+import { expectedFee } from "./instruments";
 import { addWorkingDays, daysBetween, fmtDate, fmtINR, median, r2 } from "./util";
 
 const BUCKETS: Record<BucketId, { title: string; blurb: string; side: PartnerType; needs: string }> = {
@@ -151,15 +152,6 @@ function makeBankMatcher(bank: BankTxn[], s: Settings): BankMatcher {
     matchedTotal: () => r2(total),
   };
 }
-
-/** Which rate applies to a gateway payment. */
-export function gatewayRateFor(p: Pick<GatewayTxn, "method" | "cardNetwork" | "international">, rates: GatewayRates): { pct: number; tier: "standard" | "upi" | "premium" } {
-  if (p.international || /amex|american express|diners/.test(`${p.cardNetwork} ${p.method}`)) return { pct: rates.premiumPct, tier: "premium" };
-  if (/upi/.test(p.method)) return { pct: rates.upiPct, tier: "upi" };
-  return { pct: rates.standardPct, tier: "standard" };
-}
-
-export const expectedGatewayFee = (amount: number, pct: number, rates: GatewayRates) => r2((amount * pct) / 100 + rates.fixedFee);
 
 /** Shipping slabs are 500 g each, rounded up. */
 export const slabsFor = (kg: number) => Math.max(1, Math.ceil(Math.round(kg * 1000) / 500));
@@ -500,25 +492,25 @@ export function audit(ds: Dataset, settingsIn: Partial<Settings> = {}): AuditRes
     gatewayFees = r2(payments.reduce((a, g) => a + g.fee, 0));
     gatewayTax = r2(payments.reduce((a, g) => a + g.tax, 0));
     const noCard = gatewayPartners.filter((p) => !s.gateway[p]);
-    for (const p of noCard) notes.push(`No ${partnerName(p)} rate card was added, so its fees were checked against a standard ${FALLBACK_GATEWAY.standardPct}% rate.`);
+    for (const p of noCard) notes.push(`No ${partnerName(p)} rate card was added, so its fees were checked against a standard ${FALLBACK_GATEWAY.pct.creditVisa}% rate.`);
 
     // fee and GST checks need no Shopify data
     for (const p of payments) {
       markRan("gateway_shortfall", p.partner);
       if (p.amount <= 0) continue;
       const rates = gwRates(p.partner);
-      const { pct } = gatewayRateFor(p, rates);
-      const expectedFee = expectedGatewayFee(p.amount, pct, rates);
+      const exp = expectedFee(p, rates);
       const ref = p.orderRef ? display(p.orderRef) : undefined;
-      if (p.fee - expectedFee > tol) {
-        const excess = (p.fee - expectedFee) * (1 + rates.gstPct / 100);
+      if (p.fee - exp.fee > tol) {
+        const excess = (p.fee - exp.fee) * (1 + rates.gstPct / 100);
+        const rate = `${exp.pct}%${exp.fixed ? ` plus ${fmtINR(exp.fixed)}` : ""}`;
         add({
           id: `fee:${p.id}`,
           bucket: "gateway_shortfall",
           kind: "claim",
           partner: p.partner,
           title: "Fee above your rate card",
-          reason: `Charged ${fmtINR(p.fee)} on a ${fmtINR(p.amount)} payment (${r2((p.fee / p.amount) * 100)}%). Your ${partnerName(p.partner)} rate for this payment is ${pct}%${rates.fixedFee ? ` plus ${fmtINR(rates.fixedFee)}` : ""}, so the fee should be ${fmtINR(expectedFee)}. Amount includes GST on the extra fee.`,
+          reason: `Charged ${fmtINR(p.fee)} on a ${fmtINR(p.amount)} payment (${r2((p.fee / p.amount) * 100)}%). ${exp.exact ? `Your ${partnerName(p.partner)} rate card: ${exp.label} at ${rate}` : `${exp.label}, so it was checked against the highest rate it could be on (${rate})`}, so the fee should be ${fmtINR(exp.fee)}. Amount includes GST on the extra fee.`,
           amount: excess,
           orderId: ref,
           ref: p.id,

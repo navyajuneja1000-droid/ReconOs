@@ -4,6 +4,7 @@ import type {
 } from "./types";
 import type { ColumnMap } from "./detect";
 import { gatewayFromShopify } from "./partners";
+import { cardTypeFrom, networkFrom } from "./instruments";
 import { extractRefs, money0, normAwb, normHeader, normOrderId, parseDate, parseMoney } from "./util";
 
 export interface ParsedFile {
@@ -11,6 +12,8 @@ export interface ParsedFile {
   kind: FileKind;
   /** partner id for courier and gateway files */
   partner: string | null;
+  /** for gateway files with no method column that hold one method only ("upi", "card", ...) */
+  methodHint?: string;
   table: Table;
   headerRow: number;
   map: ColumnMap;
@@ -246,6 +249,11 @@ export function normalise(files: ParsedFile[]): Dataset {
           const settledAt = parseDate(g(r, "settledAt"));
           const settledFlag = truthy(g(r, "settled"));
           const international = truthy(g(r, "international")) === true;
+          // some gateways put the network in a "card type" column, or both in one
+          const cardTypeText = str(g(r, "cardType"));
+          const netText = str(g(r, "cardNetwork"));
+          const network = (networkFrom(netText) || networkFrom(cardTypeText) || netText).toLowerCase();
+          const cardType = cardTypeFrom(cardTypeText) || cardTypeFrom(netText);
           const amount = Math.abs(money0(g(r, "amount")));
           const fee = Math.abs(money0(g(r, "fee")));
           const tax = Math.abs(money0(g(r, "tax")));
@@ -271,8 +279,9 @@ export function normalise(files: ParsedFile[]): Dataset {
             settledAt,
             settlementId: str(g(r, "settlementId")),
             utr,
-            method: str(g(r, "method")).toLowerCase(),
-            cardNetwork: str(g(r, "cardNetwork")).toLowerCase(),
+            method: (str(g(r, "method")) || file.methodHint || "").toLowerCase(),
+            cardType: cardType,
+            cardNetwork: network,
             international,
           } satisfies GatewayTxn);
         }

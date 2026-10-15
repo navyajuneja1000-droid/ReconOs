@@ -4,6 +4,7 @@ import { intakeTable, isReady, needsPartner, type Intake } from "../engine/intak
 import type { FileKind } from "../engine/types";
 import { isCardReady, LISTED, missingRates, PARTNER_BY_ID, PARTNERS, partnerTypeForKind, type RateCard } from "../engine/partners";
 import { readTable, UnsupportedFileError } from "../engine/readFile";
+import { FILE_METHODS } from "../engine/instruments";
 import { Btn, Panel, PanelHead } from "../ui";
 import { CardStatus, RateCardEditor } from "./RateCardEditor";
 
@@ -79,6 +80,8 @@ export function UploadView({
     redo(uid, (it) => intakeTable(it.name, it.table, kind ? { kind, headerRow: it.headerRow, partner: partnerTypeForKind(kind) === partnerTypeForKind(it.kind) ? it.partner : undefined } : undefined));
   const setPartner = (uid: string, partner: string) =>
     redo(uid, (it) => intakeTable(it.name, it.table, { kind: it.kind!, headerRow: it.headerRow, partner: partner || null }));
+  const setMethodHint = (uid: string, methodHint: string) =>
+    redo(uid, (it) => intakeTable(it.name, it.table, { kind: it.kind!, partner: it.partner, headerRow: it.headerRow, overrides: it.map, methodHint }));
   const setCol = (uid: string, field: string, col: number | null) =>
     redo(uid, (it) => {
       const overrides = { ...it.map };
@@ -140,7 +143,7 @@ export function UploadView({
                       <div className="min-w-0">
                         <p className="truncate font-medium">{it.name}</p>
                         <p className="mt-0.5 text-sm text-slate-400">
-                          {it.kind ? `${SHORT[it.kind]}${it.partner ? ` from ${PARTNER_BY_ID[it.partner]?.name}` : ""}, ${it.rows.toLocaleString("en-IN")} rows` : "We couldn't tell what this file is"}
+                          {it.kind ? `${SHORT[it.kind]}${it.partner ? ` from ${PARTNER_BY_ID[it.partner]?.name}` : ""}, ${it.rows.toLocaleString("en-IN")} row${it.rows === 1 ? "" : "s"}` : "We couldn't tell what this file is"}
                           {it.kind && !columnsOk && ". Some columns weren't found"}
                         </p>
                       </div>
@@ -166,6 +169,15 @@ export function UploadView({
                             <option value="">Choose the {type === "courier" ? "courier" : "gateway"}</option>
                             {PARTNERS.filter((p) => p.type === type).map((p) => <option key={p.id} value={p.id}>{p.name}{p.aggregator ? " (aggregator)" : ""}</option>)}
                           </select>
+                        </label>
+                      )}
+                      {it.kind === "gateway_settlements" && it.map.method === undefined && columnsOk && (
+                        <label className="grid gap-1 sm:col-span-2">
+                          <span className="text-slate-300">This file has no payment method column. Which methods are in it?</span>
+                          <select id={`method-${it.uid}`} value={it.methodHint} onChange={(e) => setMethodHint(it.uid, e.target.value)} className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1.5">
+                            {FILE_METHODS.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                          </select>
+                          {!it.methodHint && <span className="text-xs text-slate-400">With a mix, each payment is checked against your highest rate, so only clear overcharges are flagged.</span>}
                         </label>
                       )}
                     </div>

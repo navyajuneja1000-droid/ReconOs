@@ -14,6 +14,9 @@
  */
 import type { FileKind } from "./types";
 import { normHeader } from "./util";
+import { gatewayRates, INSTRUMENTS, type GatewayRates } from "./instruments";
+
+export type { GatewayRates } from "./instruments";
 
 export type PartnerType = "gateway" | "courier";
 
@@ -27,15 +30,6 @@ export const ZONE_LABEL: Record<Zone, string> = {
   D: "Rest of India",
   E: "North-east, J&K and special",
 };
-
-export interface GatewayRates {
-  standardPct: number; // cards, net banking, wallets
-  upiPct: number;
-  premiumPct: number; // Amex, Diners, international
-  fixedFee: number; // rupees per payment
-  gstPct: number;
-  settleDays: number; // settles within this many days of payment
-}
 
 export interface CourierRates {
   zones: Record<Zone, { first: number; extra: number }>; // per 500 g
@@ -70,9 +64,9 @@ export interface PartnerProfile {
   exampleCourier?: CourierRates;
 }
 
-const gw = (standardPct: number, upiPct: number, premiumPct: number, settleDays = 2, fixedFee = 0): GatewayRates => ({
-  standardPct, upiPct, premiumPct, fixedFee, gstPct: 18, settleDays,
-});
+/** Example rates only: a typical small-brand plan. Founders must replace them with their own. */
+const gw = (card: number, upi: number, premium = 3): GatewayRates =>
+  gatewayRates({ card, upi, debitLow: 0.4, debitHigh: 0.9, debitRupay: 0, amex: premium, diners: premium, international: premium + 0.5 });
 
 const cr = (rates: [number, number, number, number, number], codPct: number, codMin: number, weightDisputeDays = 7): CourierRates => ({
   zones: Object.fromEntries(ZONES.map((z, i) => [z, { first: rates[i], extra: rates[i] }])) as CourierRates["zones"],
@@ -104,7 +98,7 @@ export const PARTNERS: PartnerProfile[] = [
     reports: { gateway_settlements: "Razorpay dashboard → Reports → Settlement recon (CSV)" },
     contact: "Razorpay support (Dashboard → Help & Support → raise a ticket)",
     rateHelp: "Your Razorpay pricing page or the pricing in your agreement email.",
-    exampleGateway: gw(2, 2, 3),
+    exampleGateway: gw(2, 2),
   },
   {
     id: "payu",
@@ -136,7 +130,7 @@ export const PARTNERS: PartnerProfile[] = [
     reports: { gateway_settlements: "PayU dashboard → Reports → Settlements → download the transaction-level report" },
     contact: "PayU merchant support (dashboard → Help → raise a ticket)",
     rateHelp: "Your PayU pricing in the dashboard or your agreement email.",
-    exampleGateway: gw(2, 2, 3),
+    exampleGateway: gw(2, 2),
   },
   {
     id: "cashfree",
@@ -167,7 +161,7 @@ export const PARTNERS: PartnerProfile[] = [
     reports: { gateway_settlements: "Cashfree dashboard → Payment Gateway → Settlements → download the settlement recon report" },
     contact: "Cashfree support (merchant dashboard → Help → raise a ticket)",
     rateHelp: "Your Cashfree pricing in the dashboard or your agreement email.",
-    exampleGateway: gw(1.95, 1.95, 3),
+    exampleGateway: gw(1.95, 1.95),
   },
   {
     id: "phonepe",
@@ -197,7 +191,7 @@ export const PARTNERS: PartnerProfile[] = [
     reports: { gateway_settlements: "PhonePe Business dashboard → Reports → Settlements → download" },
     contact: "PhonePe PG merchant support (dashboard → Help)",
     rateHelp: "Your PhonePe PG pricing in the dashboard or your agreement.",
-    exampleGateway: gw(1.9, 0, 3),
+    exampleGateway: gw(1.9, 0),
   },
   {
     id: "paytm",
@@ -227,7 +221,7 @@ export const PARTNERS: PartnerProfile[] = [
     reports: { gateway_settlements: "Paytm for Business dashboard → Settlements → download transaction-wise report" },
     contact: "Paytm for Business support (dashboard → Help)",
     rateHelp: "Your Paytm PG pricing in the dashboard or your agreement.",
-    exampleGateway: gw(1.99, 0, 3),
+    exampleGateway: gw(1.99, 0),
   },
   {
     id: "ccavenue",
@@ -257,7 +251,7 @@ export const PARTNERS: PartnerProfile[] = [
     reports: { gateway_settlements: "CCAvenue dashboard → Reports → Settlement report → download" },
     contact: "CCAvenue merchant support",
     rateHelp: "Your CCAvenue pricing in your agreement.",
-    exampleGateway: gw(2, 2, 3),
+    exampleGateway: gw(2, 2),
   },
   {
     id: "other_gateway",
@@ -270,7 +264,7 @@ export const PARTNERS: PartnerProfile[] = [
     reports: { gateway_settlements: "Your gateway's dashboard → settlement or transaction report" },
     contact: "your payment gateway's support team",
     rateHelp: "Your gateway's pricing page or agreement.",
-    exampleGateway: gw(2, 2, 3),
+    exampleGateway: gw(2, 2),
   },
 
   // ───────────── Couriers and shipping aggregators ─────────────
@@ -515,14 +509,14 @@ export interface RateField {
   unit: "%" | "₹" | "days";
 }
 
+/** Gateway card values: pct_<method> (required) and fix_<method> (optional rupees), plus these. */
+export const pctKey = (k: string) => `pct_${k}`;
+export const fixKey = (k: string) => `fix_${k}`;
 export const GATEWAY_FIELDS: RateField[] = [
-  { key: "standardPct", label: "Cards, net banking and wallets", hint: "Your standard rate", unit: "%" },
-  { key: "upiPct", label: "UPI", hint: "Use 0 if UPI is free on your plan", unit: "%" },
-  { key: "premiumPct", label: "Amex, Diners and international cards", hint: "Usually higher than standard", unit: "%" },
-  { key: "fixedFee", label: "Fixed fee per payment", hint: "Usually 0", unit: "₹" },
   { key: "gstPct", label: "GST on the fee", hint: "Usually 18", unit: "%" },
   { key: "settleDays", label: "Pays you within", hint: "T+2 means 2 days", unit: "days" },
 ];
+const gatewayKeys = () => [...INSTRUMENTS.map((i) => pctKey(i.key)), ...GATEWAY_FIELDS.map((f) => f.key)];
 
 export const COURIER_EXTRA_FIELDS: RateField[] = [
   { key: "codPct", label: "COD fee", hint: "Percent of the cash collected", unit: "%" },
@@ -539,7 +533,7 @@ export function courierFieldKeys(): string[] {
 }
 
 export function rateFieldKeys(partnerId: string): string[] {
-  return PARTNER_BY_ID[partnerId]?.type === "gateway" ? GATEWAY_FIELDS.map((f) => f.key) : courierFieldKeys();
+  return PARTNER_BY_ID[partnerId]?.type === "gateway" ? gatewayKeys() : courierFieldKeys();
 }
 
 const numOk = (s: string | undefined, max = Infinity) => {
@@ -550,7 +544,11 @@ const numOk = (s: string | undefined, max = Infinity) => {
 
 /** Fields still blank or invalid on a rate card. */
 export function missingRates(card: RateCard): string[] {
-  return rateFieldKeys(card.partner).filter((k) => !numOk(card.values[k], /Pct$/.test(k) && k !== "rtoPct" ? 100 : k === "rtoPct" ? 200 : Infinity));
+  const max = (k: string) => (k === "rtoPct" ? 200 : /Pct$|^pct_/.test(k) ? 100 : Infinity);
+  const bad = rateFieldKeys(card.partner).filter((k) => !numOk(card.values[k], max(k)));
+  // optional rupee fees: blank is fine, but not junk
+  const badFixed = Object.keys(card.values).filter((k) => k.startsWith("fix_") && card.values[k].trim() !== "" && !numOk(card.values[k]));
+  return [...bad, ...badFixed];
 }
 
 export const isCardComplete = (card: RateCard | undefined) => !!card && missingRates(card).length === 0;
@@ -564,7 +562,10 @@ export function exampleCard(partner: string): RateCard {
   const p = PARTNER_BY_ID[partner];
   const values: Record<string, string> = {};
   if (p?.type === "gateway" && p.exampleGateway) {
-    for (const [k, v] of Object.entries(p.exampleGateway)) values[k] = String(v);
+    const g = p.exampleGateway;
+    for (const i of INSTRUMENTS) values[pctKey(i.key)] = String(g.pct[i.key]);
+    values.gstPct = String(g.gstPct);
+    values.settleDays = String(g.settleDays);
   } else if (p?.exampleCourier) {
     const c = p.exampleCourier;
     for (const z of ZONES) {
@@ -586,7 +587,12 @@ export function ratesFromCards(cards: Record<string, RateCard>): { gateway: Reco
     const p = PARTNER_BY_ID[card.partner];
     if (!p) continue;
     if (p.type === "gateway") {
-      gateway[p.id] = { standardPct: v("standardPct"), upiPct: v("upiPct"), premiumPct: v("premiumPct"), fixedFee: v("fixedFee"), gstPct: v("gstPct"), settleDays: v("settleDays") };
+      gateway[p.id] = {
+        pct: Object.fromEntries(INSTRUMENTS.map((i) => [i.key, v(pctKey(i.key))])) as GatewayRates["pct"],
+        fixed: Object.fromEntries(INSTRUMENTS.map((i) => [i.key, Number(card.values[fixKey(i.key)] || 0)])) as GatewayRates["fixed"],
+        gstPct: v("gstPct"),
+        settleDays: v("settleDays"),
+      };
     } else {
       courier[p.id] = {
         zones: Object.fromEntries(ZONES.map((z) => [z, { first: v(zoneKey(z, "first")), extra: v(zoneKey(z, "extra")) }])) as CourierRates["zones"],

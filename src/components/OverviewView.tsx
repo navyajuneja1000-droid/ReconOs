@@ -22,7 +22,7 @@ const WHY = [
   },
   {
     title: "Gateway fees are taken before you see the money",
-    body: "Razorpay, PayU, Cashfree and the rest deduct their fee and 18% GST from every settlement, at the rate you negotiated. A wrong rate, wrong GST or a payment that never settled doesn't show up in a total.",
+    body: "Razorpay, PayU, Cashfree and the rest take a fee plus 18% GST from every settlement, at a different rate for UPI, debit cards, each credit card network and net banking. A wrong rate, wrong GST or a payment that never settled doesn't show up in a total.",
   },
   {
     title: "The proof is spread across a dozen reports",
@@ -41,7 +41,8 @@ const FAQ = [
   { q: "Do my files get uploaded?", a: "No. ReconOS runs in your browser tab. Your files are read on your computer and disappear when you close the tab." },
   { q: "Which couriers and gateways work today?", a: `Gateways: ${list(GATEWAY_NAMES)}. Couriers and shipping aggregators: ${list(COURIER_NAMES)}. Plus Shopify and any bank statement saved as CSV or Excel. Reading partner reports is in beta while we test with real exports, so if a column isn't recognised you can tell ReconOS which one it is.` },
   { q: "I use more than one courier and gateway. Does that work?", a: "Yes, that's what it's built for. Add every partner's files together. The dashboard shows the combined total, the Partners page splits every finding by courier and gateway, and each partner gets its own claim email." },
-  { q: "Why do I have to add my rates?", a: "Couriers and gateways charge what you negotiated, not a public price. ReconOS can only say a charge is too high if it knows what you agreed, so each partner needs its rate card before the audit runs. You can start from example rates, but change any that differ from your agreement." },
+  { q: "Why do I have to add my rates?", a: "Couriers and gateways charge what you negotiated, not a public price. ReconOS can only say a charge is too high if it knows what you agreed, so each partner needs its rate card before the audit runs. Gateways get a rate for each payment method (UPI, debit cards above and below ₹2,000, RuPay, each credit card network, Amex, net banking and more); couriers get a rate for each zone. You can start from example rates, but change any that differ from your agreement." },
+  { q: "My gateway sends one file for UPI and another for cards. Is that okay?", a: "Yes. Add them all. Files from the same gateway are combined, and if a file has no payment method column, ReconOS reads the method from the file name or asks you." },
   { q: "What's the difference between Claim and Check?", a: "Claim means your own files prove the money is owed, for example a delivered COD order with no payout. Check means something doesn't add up but needs your eyes first, for example a paid order missing from a gateway's report." },
   { q: "Will this work if I only have some of the files?", a: "Yes. Start with Shopify orders. Every extra file switches on more checks, and the dashboard tells you which checks didn't run and why." },
   { q: "Is the sample data real?", a: "No. Indigo Loom is a made-up brand with a realistic month of orders and a known set of leaks, so you can see exactly what ReconOS finds." },
