@@ -1,62 +1,53 @@
 # ReconOS
 
-**Multi-gateway settlement reconciliation for Indian mid-market merchants.**
+**Find the money your courier and payment gateway owe you.**
 
-A merchant running two to four payment aggregators gets three views of the same money: orders in the store, net settlements from each gateway (after MDR and 18% GST on MDR are deducted at source), and credits in the bank. ReconOS lines all three up, re-prices every transaction against the contracted rate card, and flags the gap between what the gateway charged and what it should have charged.
+ReconOS is for Indian D2C brands selling on Shopify, shipping with Shiprocket and taking prepaid payments through Razorpay. A founder exports last month's reports, drops them in, and ReconOS traces every order from sale to courier or gateway to the bank. It flags what's missing or overcharged, and writes the claim emails.
 
-This repository is a working front-end model of that product. Every screen is interactive and runs on a seeded dataset of transactions; there is no backend.
+Files are read in the browser only. Nothing is uploaded or stored.
 
-## What's in it
+## What's on the site
 
-| Screen | What it does |
+| Page | What it shows |
 | --- | --- |
-| **Dashboard** | GMV, match rate, fee variance and open exceptions across gateways |
-| **Three-way match** | Order ↔ gateway settlement ↔ bank credit, transaction by transaction |
-| **Rate-card engine** | Contracted MDR per payment method; re-prices each transaction and computes fee variance |
-| **Exception workspace** | Triage queue for eleven break types (fee and GST-on-MDR mismatches, part settlements, T+N slippage, missing UTRs, chargebacks, refund lag and more), with dispute-notice drafting |
-| **Data ingestion** | Status of the order, aggregator and bank-statement feeds |
-| **Audit report** | Leakage summary by gateway and break type |
-| **Accounting export** | Tally XML and Zoho Books CSV journal entries |
-| **Business model & ROI** | Subscription plus recovery-fee pricing, and payback against a merchant's own GMV and leakage rate |
+| **How it works** | The problem, the 4-step workflow, a live preview of the sample dashboard, who it's for, FAQ and early-access sign-up |
+| **Dashboard** | Claim and check totals, leaks by type, where sales went, what to act on first, totals by partner |
+| **Upload files** | Drop in CSV or Excel exports; each file is recognised from its columns, or mapped by hand |
+| **Order trail** | Every order traced from sale to payout to bank, with filters |
+| **Leaks & claims** | Every finding with its evidence, plus ready-to-send emails to Shiprocket and Razorpay |
+| **Fee check** | Every Razorpay payment re-priced against your plan, by payment method |
+| **Recovery report** | A one-page summary to share with a co-founder or accountant |
+| **Pricing** | Free audit, then monthly plans |
 
-### How fee variance is calculated
+The site opens on a made-up brand (Indigo Loom) with a realistic month of data and a known set of planted leaks, so every screen can be explored before uploading anything.
 
-```
-Expected MDR  = Gross × contracted MDR rate + flat fee
-Expected GST  = Expected MDR × 18%
-Fee variance  = (Billed MDR + Billed GST) − (Expected MDR + Expected GST)
-```
+## Checks
 
-The logic lives in `src/utils/reconciliationEngine.ts`. Seed data and rate cards are in `src/data/mockData.ts`.
+1. COD the courier never paid, or paid short
+2. Shipping overcharges: charged twice, COD fee on prepaid orders, return charges on delivered orders
+3. Weight charges still open to dispute, with the last date (7 working days on Shiprocket)
+4. Razorpay fees above plan, wrong GST on fees, paid orders never settled, refund mismatches
+5. Courier payouts and gateway settlements that never reached the bank
+
+**Claim** means the founder's own files prove the money is owed. **Check** means something doesn't add up and needs a look first.
 
 ## Run it
-
-Requires Node.js 18 or later. No API keys or environment variables are needed.
 
 ```bash
 npm install
 npm run dev      # http://localhost:3000
+npm test         # every planted leak in the sample is found, and nothing else is flagged
+npm run build    # production build in dist/
 ```
 
-| Command | |
-| --- | --- |
-| `npm run dev` | Dev server on port 3000 |
-| `npm run build` | Production build to `dist/` |
-| `npm run preview` | Serve the production build |
-| `npm run lint` | Type-check with `tsc --noEmit` |
+Early-access sign-ups post to `VITE_WAITLIST_ENDPOINT` (for example a Formspree form URL). Without it, the form tells visitors sign-ups aren't open yet and saves nothing.
 
-## Stack
-
-React 19, TypeScript, Vite 6, Tailwind CSS 4, Recharts, Motion, Lucide icons.
-
-## Project layout
+## Layout
 
 ```
-src/
-  App.tsx                     tab routing and app state
-  components/                 one file per screen, plus modals
-  utils/reconciliationEngine.ts   re-pricing, metrics, audit summary, exports
-  data/mockData.ts            rate cards, feeds, seeded transactions
-  types/recon.ts              canonical transaction model
-docs/                         product specification and architecture notes
+src/engine/      file recognition, parsing, checks, order trail, claim emails (pure TypeScript)
+src/sample/      the Indigo Loom sample month with planted leaks
+src/components/  one file per page
+src/pricing.ts   plan names and prices (edit here)
+tests/           engine tests
 ```
