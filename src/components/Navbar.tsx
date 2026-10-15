@@ -1,11 +1,12 @@
 import React from "react";
 import { inr } from "../ui";
 
-export type Tab = "overview" | "dashboard" | "upload" | "orders" | "leaks" | "fees" | "report" | "pricing";
+export type Tab = "overview" | "dashboard" | "partners" | "upload" | "orders" | "leaks" | "fees" | "report" | "pricing";
 
 export const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "How it works" },
   { id: "dashboard", label: "Dashboard" },
+  { id: "partners", label: "Partners" },
   { id: "upload", label: "Upload files" },
   { id: "orders", label: "Order trail" },
   { id: "leaks", label: "Leaks & claims" },

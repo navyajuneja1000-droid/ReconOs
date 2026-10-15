@@ -1,3 +1,5 @@
+import type { CourierRates, GatewayRates, PartnerType } from "./partners";
+
 export type FileKind =
   | "shopify_orders"
   | "courier_shipments"
@@ -14,6 +16,7 @@ export type ShipStatus = "delivered" | "rto" | "in_transit" | "cancelled" | "los
 
 export interface Order {
   orderId: string; // normalised
+  gateway: string | null; // gateway partner id from Shopify's payment method
   displayId: string; // as written in Shopify, e.g. "#10023"
   createdAt: Date | null;
   paymentMode: PaymentMode;
@@ -28,6 +31,7 @@ export interface Order {
 export type ChargeType = "forward" | "cod_fee" | "rto" | "other";
 
 export interface Charge {
+  partner: string;
   awb: string;
   orderId: string;
   type: ChargeType;
@@ -36,17 +40,21 @@ export interface Charge {
 }
 
 export interface Shipment {
+  partner: string; // who billed it: Shiprocket, Delhivery direct, ...
   awb: string;
   orderId: string;
-  courier: string;
+  courier: string; // carrier named in the file (an aggregator books many)
   paymentMode: PaymentMode;
   status: ShipStatus;
   statusText: string;
   deliveredAt: Date | null;
   codAmount: number;
+  chargedKg: number;
+  zone: string;
 }
 
 export interface CodRemittance {
+  partner: string;
   awb: string;
   orderId: string;
   codAmount: number;
@@ -57,6 +65,7 @@ export interface CodRemittance {
 }
 
 export interface WeightDiscrepancy {
+  partner: string;
   awb: string;
   orderId: string;
   enteredKg: number;
@@ -68,6 +77,7 @@ export interface WeightDiscrepancy {
 }
 
 export interface GatewayTxn {
+  partner: string;
   id: string;
   type: "payment" | "refund" | "adjustment" | "other";
   paymentId: string; // for refunds: the payment refunded
@@ -106,6 +116,8 @@ export interface Dataset {
   gateway: GatewayTxn[];
   bank: BankTxn[];
   present: Partial<Record<FileKind, boolean>>;
+  /** which file kinds each partner sent */
+  partnerFiles: Record<string, FileKind[]>;
   notes: string[];
 }
 
@@ -117,7 +129,8 @@ export type BucketId =
   | "gateway_shortfall"
   | "gateway_payout_missing";
 
-export type Counterparty = "Shiprocket" | "Razorpay" | "Your bank" | "Your team";
+/** A partner's display name, or "Your team" when the fix is on the brand's side. */
+export type Counterparty = string;
 
 export interface Finding {
   id: string;
@@ -125,6 +138,8 @@ export interface Finding {
   /** claim = money owed with evidence; check = needs a human look before claiming */
   kind: "claim" | "check";
   counterparty: Counterparty;
+  /** partner id the finding belongs to (also set for "Your team" items about that partner) */
+  partner?: string;
   title: string;
   reason: string;
   amount: number;
@@ -138,32 +153,29 @@ export interface Finding {
 
 export interface Settings {
   asOf?: Date;
-  gatewayFeePct: number; // e.g. 2 for 2%
-  gatewayFeePctPremium: number; // Amex, Diners, international cards
-  gstPct: number;
-  codGraceDays: number;
-  gatewayGraceDays: number;
+  /** confirmed rate cards, by partner id */
+  gateway: Record<string, GatewayRates>;
+  courier: Record<string, CourierRates>;
   bankMatchDays: number;
-  weightDisputeWorkingDays: number;
   tolerance: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  gatewayFeePct: 2,
-  gatewayFeePctPremium: 3,
-  gstPct: 18,
-  codGraceDays: 10,
-  gatewayGraceDays: 3,
+  gateway: {},
+  courier: {},
   bankMatchDays: 3,
-  weightDisputeWorkingDays: 7,
   tolerance: 1,
 };
+
+/** Used only when a partner has no confirmed rate card (the app always asks for one). */
+export const FALLBACK_GATEWAY: GatewayRates = { standardPct: 2, upiPct: 2, premiumPct: 3, fixedFee: 0, gstPct: 18, settleDays: 3 };
+export const FALLBACK_COURIER_DAYS = { weightDisputeDays: 7, codPayDays: 10 };
 
 export interface BucketSummary {
   id: BucketId;
   title: string;
   blurb: string;
-  counterparty: Counterparty;
+  side: PartnerType;
   claimTotal: number;
   checkTotal: number;
   count: number;
@@ -180,8 +192,10 @@ export interface CashView {
   gatewayTax: number;
   shippingCharges: number;
   codRemitted: number;
+  codRemittedBy: Record<string, number>;
   codPendingInGrace: number;
   gatewaySettledNet: number;
+  gatewaySettledBy: Record<string, number>;
   reachedBank: number | null;
   rtoOrders: number;
   rtoCharges: number;
@@ -191,6 +205,22 @@ export interface Insight {
   title: string;
   detail: string;
   amount?: number;
+}
+
+export interface PartnerSummary {
+  id: string;
+  name: string;
+  type: PartnerType;
+  files: FileKind[];
+  /** file kinds this partner type can send that weren't added */
+  missingFiles: FileKind[];
+  claimTotal: number;
+  checkTotal: number;
+  count: number;
+  byBucket: { bucket: BucketId; claim: number; check: number; count: number }[];
+  rateCard: boolean;
+  /** volume seen in this partner's files */
+  volume: { label: string; value: string }[];
 }
 
 export interface AuditResult {
@@ -203,5 +233,6 @@ export interface AuditResult {
   cash: CashView;
   insights: Insight[];
   notes: string[];
+  partners: PartnerSummary[];
   settings: Settings;
 }

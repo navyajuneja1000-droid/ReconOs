@@ -1,7 +1,9 @@
 import React from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ViewCtx } from "../App";
+import { partnerName } from "../engine/partners";
 import { fmtDay, inr, KindTag, Panel, PanelHead } from "../ui";
+import { TypeTag } from "./PartnersView";
 
 const SHORT: Record<string, string> = {
   cod_unpaid: "COD not paid",
@@ -12,7 +14,7 @@ const SHORT: Record<string, string> = {
   gateway_payout_missing: "Gateway payout missing",
 };
 
-export function DashboardView({ result, trail, setTab, source, brandName }: ViewCtx) {
+export function DashboardView({ result, trail, setTab, source, brandName, setPartner }: ViewCtx) {
   const c = result.cash;
   const traced = trail.filter((t) => t.state === "matched").length;
   const due = trail.filter((t) => t.state !== "no_cash_due" && t.state !== "unknown").length;
@@ -21,15 +23,13 @@ export function DashboardView({ result, trail, setTab, source, brandName }: View
   const act = [...urgent.slice(0, 3), ...topClaims];
   const chart = result.buckets.filter((b) => b.ran).map((b) => ({ name: SHORT[b.id], claim: b.claimTotal, check: b.checkTotal }));
   const notRun = result.buckets.filter((b) => !b.ran);
-  const sum = (bucket: string, kind?: "claim" | "check") =>
-    result.findings.filter((f) => f.bucket === bucket && (!kind || f.kind === kind)).reduce((a, f) => a + f.amount, 0);
   const hasData = result.cash.sold > 0 || result.findings.length > 0;
 
   if (!hasData) {
     return (
       <Panel className="p-8 text-center">
         <h1 className="text-2xl font-semibold">No orders to show yet</h1>
-        <p className="mx-auto mt-2 max-w-[52ch] text-slate-300">Add your Shopify orders export, and any Shiprocket, Razorpay or bank files, then run the audit.</p>
+        <p className="mx-auto mt-2 max-w-[52ch] text-slate-300">Add your Shopify orders export, the files from each courier and payment gateway you use, and your bank statement, then run the audit.</p>
         <button type="button" onClick={() => setTab("upload")} className="mt-5 rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-slate-950">Upload files</button>
       </Panel>
     );
@@ -41,6 +41,7 @@ export function DashboardView({ result, trail, setTab, source, brandName }: View
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Dashboard</h1>
         <p className="mt-1 text-slate-400">
           {source === "sample" ? "Sample: " : ""}{brandName}, orders from {fmtDay(result.period.from)} to {fmtDay(result.period.to)}, checked as of {fmtDay(result.asOf)}
+          {result.partners.length > 0 && <>, across {result.partners.map((p) => p.name).join(", ")}</>}
         </p>
       </div>
 
@@ -94,9 +95,11 @@ export function DashboardView({ result, trail, setTab, source, brandName }: View
               ["Prepaid", c.prepaidSold, false, true],
               ["Gateway fees and GST", -(c.gatewayFees + c.gatewayTax)],
               ["Shipping charges billed", -c.shippingCharges],
-              ["COD paid out by courier", c.codRemitted],
+              ["COD paid out by couriers", c.codRemitted],
+              ...Object.entries(c.codRemittedBy).filter(() => Object.keys(c.codRemittedBy).length > 1).map(([p, v]) => [partnerName(p), v, false, true]),
               ["COD delivered, not due yet", c.codPendingInGrace],
-              ["Settled by Razorpay", c.gatewaySettledNet],
+              ["Settled by gateways", c.gatewaySettledNet],
+              ...Object.entries(c.gatewaySettledBy).filter(() => Object.keys(c.gatewaySettledBy).length > 1).map(([p, v]) => [partnerName(p), v, false, true]),
               ...(c.reachedBank !== null ? [["Matched in your bank", c.reachedBank, true]] : []),
             ].map(([l, v, strong, indent]) => (
               <div key={String(l)} className={`flex items-baseline justify-between gap-3 ${indent ? "pl-4 text-slate-400" : "text-slate-300"}`}>
@@ -121,7 +124,7 @@ export function DashboardView({ result, trail, setTab, source, brandName }: View
                     <span className="font-medium">{f.title}</span>
                     {f.deadline && <span className="text-xs font-medium text-rose-300">Dispute by {fmtDay(f.deadline)}</span>}
                   </div>
-                  <p className="mt-1 truncate text-sm text-slate-400">{[f.orderId && `Order ${f.orderId}`, f.awb && `AWB ${f.awb}`, f.ref && !f.awb && `Ref ${f.ref}`].filter(Boolean).join(", ")}</p>
+                  <p className="mt-1 truncate text-sm text-slate-400">{[f.partner && partnerName(f.partner), f.orderId && `Order ${f.orderId}`, f.awb && `AWB ${f.awb}`, f.ref && !f.awb && `Ref ${f.ref}`].filter(Boolean).join(", ")}</p>
                 </div>
                 <p className={`font-semibold tabular-nums ${f.kind === "claim" ? "text-emerald-400" : "text-amber-300"}`}>{inr(f.amount)}</p>
               </li>
@@ -131,25 +134,24 @@ export function DashboardView({ result, trail, setTab, source, brandName }: View
         </Panel>
 
         <Panel>
-          <PanelHead title="By partner" sub="What each partner owes you" />
+          <PanelHead title="By partner" sub="Open one to see only its leaks" right={<button type="button" onClick={() => { setPartner("all"); setTab("partners"); }} className="text-sm text-emerald-300 hover:underline">Compare partners</button>} />
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[360px] text-sm">
+            <table className="w-full min-w-[340px] text-sm">
               <thead className="text-left text-slate-400">
-                <tr><th className="px-5 py-2 font-medium">Shiprocket</th><th className="px-5 py-2 text-right font-medium">Amount</th></tr>
+                <tr><th className="px-5 py-2 font-medium">Partner</th><th className="px-3 py-2 text-right font-medium">Claim</th><th className="px-5 py-2 text-right font-medium">Check</th></tr>
               </thead>
-              <tbody className="divide-y divide-slate-800 text-slate-300">
-                <tr><td className="px-5 py-2">COD not paid or paid short</td><td className="px-5 py-2 text-right tabular-nums">{inr(sum("cod_unpaid"))}</td></tr>
-                <tr><td className="px-5 py-2">Shipping overcharges</td><td className="px-5 py-2 text-right tabular-nums">{inr(sum("shipping_overcharge"))}</td></tr>
-                <tr><td className="px-5 py-2">Weight charges open to dispute</td><td className="px-5 py-2 text-right tabular-nums">{inr(sum("weight_dispute"))}</td></tr>
-                <tr><td className="px-5 py-2">Payouts not in your bank</td><td className="px-5 py-2 text-right tabular-nums">{inr(sum("courier_payout_missing"))}</td></tr>
-              </tbody>
-              <thead className="border-t border-slate-800 text-left text-slate-400">
-                <tr><th className="px-5 py-2 font-medium">Razorpay</th><th className="px-5 py-2 text-right font-medium" /></tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800 text-slate-300">
-                <tr><td className="px-5 py-2">Fee and GST charged above plan</td><td className="px-5 py-2 text-right tabular-nums">{inr(sum("gateway_shortfall", "claim"))}</td></tr>
-                <tr><td className="px-5 py-2">Unsettled payments and refund gaps</td><td className="px-5 py-2 text-right tabular-nums">{inr(sum("gateway_shortfall", "check"))}</td></tr>
-                <tr><td className="px-5 py-2">Settlements not in your bank</td><td className="px-5 py-2 text-right tabular-nums">{inr(sum("gateway_payout_missing"))}</td></tr>
+              <tbody className="divide-y divide-slate-800">
+                {result.partners.map((p) => (
+                  <tr key={p.id} className="cursor-pointer hover:bg-slate-800/40" onClick={() => { setPartner(p.id); setTab("partners"); }}>
+                    <td className="px-5 py-2.5">
+                      <button type="button" className="mr-2 font-medium text-slate-100 hover:underline" onClick={(e) => { e.stopPropagation(); setPartner(p.id); setTab("partners"); }}>{p.name}</button>
+                      <TypeTag p={p} />
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-emerald-400">{inr(p.claimTotal)}</td>
+                    <td className="px-5 py-2.5 text-right tabular-nums text-amber-300">{inr(p.checkTotal)}</td>
+                  </tr>
+                ))}
+                {!result.partners.length && <tr><td colSpan={3} className="px-5 py-6 text-slate-400">Add a courier or gateway file to see each partner.</td></tr>}
               </tbody>
             </table>
           </div>

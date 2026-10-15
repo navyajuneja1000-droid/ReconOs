@@ -1,4 +1,5 @@
 import type { FileKind } from "./types";
+import { PARTNER_BY_ID } from "./partners";
 import { normHeader } from "./util";
 
 export interface FieldSpec {
@@ -42,12 +43,12 @@ export const KIND_SPECS: KindSpec[] = [
   },
   {
     kind: "courier_shipments",
-    label: "Shiprocket shipments & charges",
-    source: "Shiprocket → Shipments (or Billing → Shipping charges) → Export",
+    label: "Courier shipments & charges",
+    source: "Your courier or Shiprocket panel → Shipments or Billing → Export",
     unlocks: "Delivery status for COD checks, and shipping overcharges.",
     fields: [
-      f("awb", "AWB number", ["awb code", "awb", "awb number", "awb no", "tracking number", "tracking id", "waybill"]),
-      f("orderId", "Order ID", ["order id", "channel order id", "order number", "order no", "reference number"]),
+      f("awb", "AWB number", ["awb code", "awb", "awb number", "awb no", "tracking number", "tracking id", "waybill", "waybill no", "consignment number", "consignment no", "docket number"]),
+      f("orderId", "Order ID", ["order id", "channel order id", "order number", "order no", "reference number", "reference no"]),
       f("courier", "Courier", ["courier name", "courier", "carrier", "courier partner"]),
       f("paymentMode", "Payment mode", ["payment method", "payment mode", "payment type", "cod prepaid"]),
       f("status", "Shipment status", ["status", "shipment status", "current status", "delivery status"]),
@@ -56,6 +57,8 @@ export const KIND_SPECS: KindSpec[] = [
       f("freight", "Freight charges", ["freight charges", "forward charges", "shipping charges", "forward freight", "freight"]),
       f("codFee", "COD charges", ["cod charges", "cod charge", "cod fee", "cod handling charges"]),
       f("rtoCharge", "RTO charges", ["rto charges", "rto charge", "rto freight", "return charges"]),
+      f("chargedKg", "Charged weight", ["charged weight kg", "charged weight", "billed weight", "final weight"]),
+      f("zone", "Zone", ["zone", "billing zone", "rate zone", "zone name"]),
       f("chargeType", "Charge type (one row per charge)", ["charge type", "charge description"]),
       f("chargeAmount", "Charge amount (one row per charge)", ["charge amount", "billed amount"]),
     ],
@@ -64,11 +67,11 @@ export const KIND_SPECS: KindSpec[] = [
   },
   {
     kind: "courier_cod",
-    label: "Shiprocket COD remittance",
-    source: "Shiprocket → Billing → COD remittance → Export",
+    label: "COD remittance",
+    source: "Your courier or Shiprocket panel → COD remittance → Export",
     unlocks: "COD money not paid or short-paid to you.",
     fields: [
-      f("awb", "AWB number", ["awb code", "awb", "awb number", "awb no", "tracking number", "waybill"]),
+      f("awb", "AWB number", ["awb code", "awb", "awb number", "awb no", "tracking number", "tracking id", "waybill", "waybill no", "consignment number"]),
       f("orderId", "Order ID", ["order id", "channel order id", "order number", "order no"]),
       f("codAmount", "COD amount", ["cod amount", "cod value", "collected amount", "collectable amount", "cod collected"]),
       f("remitted", "Amount remitted", ["remitted amount", "remittance amount", "amount remitted", "paid amount", "net remitted"]),
@@ -81,11 +84,11 @@ export const KIND_SPECS: KindSpec[] = [
   },
   {
     kind: "courier_weight",
-    label: "Shiprocket weight discrepancies",
-    source: "Shiprocket → Billing → Weight reconciliation → Export",
+    label: "Weight discrepancies",
+    source: "Your courier or Shiprocket panel → Weight discrepancy → Export",
     unlocks: "Extra weight charges you can still dispute, with deadlines.",
     fields: [
-      f("awb", "AWB number", ["awb code", "awb", "awb number", "awb no", "tracking number"]),
+      f("awb", "AWB number", ["awb code", "awb", "awb number", "awb no", "tracking number", "tracking id", "waybill", "consignment number"]),
       f("orderId", "Order ID", ["order id", "channel order id", "order number"]),
       f("enteredKg", "Your entered weight (kg)", ["entered weight kg", "entered weight", "applied weight", "declared weight", "applied weight kg"]),
       f("chargedKg", "Courier's charged weight (kg)", ["charged weight kg", "charged weight", "courier weight", "final weight"]),
@@ -98,8 +101,8 @@ export const KIND_SPECS: KindSpec[] = [
   },
   {
     kind: "gateway_settlements",
-    label: "Razorpay settlements",
-    source: "Razorpay dashboard → Reports → Settlement recon (CSV)",
+    label: "Gateway settlements",
+    source: "Your gateway's dashboard → Reports → Settlement or transaction report",
     unlocks: "Missing settlements, fee and GST overcharges, refund mismatches.",
     fields: [
       f("id", "Transaction ID", ["entity id", "entity_id", "transaction id", "id"]),
@@ -110,6 +113,8 @@ export const KIND_SPECS: KindSpec[] = [
       f("credit", "Credit", ["credit"]),
       f("debit", "Debit", ["debit"]),
       f("settled", "Settled", ["settled"]),
+      f("status", "Payment status", ["status", "payment status", "transaction status"]),
+      f("net", "Net amount paid to you", ["net amount", "settlement amount", "settled amount", "payable amount"]),
       f("createdAt", "Created at", ["created at", "created_at", "payment date"]),
       f("settledAt", "Settled at", ["settled at", "settled_at", "settlement date"]),
       f("settlementId", "Settlement ID", ["settlement id", "settlement_id"]),
@@ -146,9 +151,17 @@ export const SPEC_BY_KIND: Record<FileKind, KindSpec> = Object.fromEntries(
 
 export type ColumnMap = Record<string, number>;
 
+/** A kind's fields with a partner's own column names tried first. */
+export function fieldsFor(kind: FileKind, partner?: string | null): FieldSpec[] {
+  const extra = partner ? PARTNER_BY_ID[partner]?.columns[kind] : undefined;
+  const base = SPEC_BY_KIND[kind].fields;
+  if (!extra) return base;
+  return base.map((fld) => (extra[fld.key] ? { ...fld, synonyms: [...extra[fld.key], ...fld.synonyms] } : fld));
+}
+
 /** Match each field to a column: exact synonym first, then whole-word containment. */
-export function mapColumns(kind: FileKind, headers: unknown[], overrides: ColumnMap = {}): ColumnMap {
-  const spec = SPEC_BY_KIND[kind];
+export function mapColumns(kind: FileKind, headers: unknown[], overrides: ColumnMap = {}, partner?: string | null): ColumnMap {
+  const spec = { fields: fieldsFor(kind, partner) };
   const norm = headers.map((h) => normHeader(String(h ?? "")));
   const used = new Set<number>(Object.values(overrides));
   const map: ColumnMap = { ...overrides };
@@ -200,7 +213,7 @@ export interface Detection {
  * Work out what a table is. Some exports put a title or blank lines above the header,
  * so the first 15 rows are tried as the header row.
  */
-export function detectKind(table: unknown[][]): Detection {
+export function detectKind(table: unknown[][], partner?: string | null): Detection {
   let best: Detection = { kind: null, headerRow: 0, map: {}, score: 0, candidates: [] };
   const maxHeaderRow = Math.min(15, Math.max(0, table.length - 1));
   for (let hr = 0; hr <= maxHeaderRow; hr++) {
@@ -208,7 +221,7 @@ export function detectKind(table: unknown[][]): Detection {
     const nonEmpty = headers.filter((h) => String(h ?? "").trim() !== "").length;
     if (nonEmpty < 3) continue;
     const candidates = KIND_SPECS.map((spec) => {
-      const map = mapColumns(spec.kind, headers);
+      const map = mapColumns(spec.kind, headers, {}, partner);
       const ok = missingRequired(spec.kind, map).length === 0;
       const sig = spec.signature.filter((k) => map[k] !== undefined).length;
       const matched = Object.keys(map).length;

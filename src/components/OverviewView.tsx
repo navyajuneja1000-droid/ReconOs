@@ -4,6 +4,11 @@ import { Btn, inr, KindTag, Panel } from "../ui";
 import { MoneyTrail } from "./MoneyTrail";
 import { SignupForm } from "./SignupForm";
 import { PLANS } from "../pricing";
+import { LISTED } from "../engine/partners";
+
+const list = (names: string[]) => `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+const GATEWAY_NAMES = LISTED.gateways.map((p) => p.name);
+const COURIER_NAMES = LISTED.couriers.map((p) => p.name);
 
 const WHY = [
   {
@@ -17,25 +22,27 @@ const WHY = [
   },
   {
     title: "Gateway fees are taken before you see the money",
-    body: "Razorpay deducts its fee and 18% GST from every settlement. A wrong rate, wrong GST or a payment that never settled doesn't show up in a total.",
+    body: "Razorpay, PayU, Cashfree and the rest deduct their fee and 18% GST from every settlement, at the rate you negotiated. A wrong rate, wrong GST or a payment that never settled doesn't show up in a total.",
   },
   {
-    title: "The proof is spread across five reports",
-    body: "Shopify, three Shiprocket reports, Razorpay and your bank statement. Matching them by hand takes days, so most small brands never do it.",
+    title: "The proof is spread across a dozen reports",
+    body: "Shopify, three reports from each courier, one from each gateway, and your bank. With two couriers and two gateways that's ten files to match by hand, so most small brands never do it.",
   },
 ];
 
 const STEPS = [
-  { title: "Export last month's reports", body: "Shopify orders, Shiprocket shipments, COD remittance and weight discrepancies, Razorpay settlements and your bank statement. About ten minutes." },
-  { title: "Drop them into ReconOS", body: "Each file is recognised from its columns. They're read inside your browser, so nothing is uploaded anywhere." },
-  { title: "See every order's money trail", body: "Each order is traced from sale to courier or gateway to your bank. Gaps are marked Claim when the files prove it, or Check when they need a look." },
-  { title: "Send the claims", body: "Ready-to-send emails for Shiprocket and Razorpay list every order and amount. Weight disputes come with the last date you can raise them." },
+  { title: "Export last month's reports", body: "Shopify orders, the shipment, COD and weight reports from each courier, the settlement report from each gateway, and your bank statement." },
+  { title: "Drop them in and add your rates", body: "Each file is matched to the partner that sent it. Add each partner's rate card once, so every charge is checked against what you agreed. Nothing is uploaded." },
+  { title: "See the total, then each partner", body: "One combined dashboard, and every finding split by courier and gateway. Gaps are marked Claim when the files prove it, or Check when they need a look." },
+  { title: "Send the claims", body: "One ready-to-send email per partner lists every order and amount. Weight disputes come with the last date you can raise them." },
 ];
 
 const FAQ = [
   { q: "Do my files get uploaded?", a: "No. ReconOS runs in your browser tab. Your files are read on your computer and disappear when you close the tab." },
-  { q: "Which couriers and gateways work today?", a: "Shopify, Shiprocket, Razorpay and any bank statement saved as CSV or Excel. Delhivery direct, Cashfree and PayU are next. If a file isn't recognised, you can tell ReconOS which column is which." },
-  { q: "What's the difference between Claim and Check?", a: "Claim means your own files prove the money is owed, for example a delivered COD order with no payout. Check means something doesn't add up but needs your eyes first, for example a paid order missing from Razorpay's report." },
+  { q: "Which couriers and gateways work today?", a: `Gateways: ${list(GATEWAY_NAMES)}. Couriers and shipping aggregators: ${list(COURIER_NAMES)}. Plus Shopify and any bank statement saved as CSV or Excel. Reading partner reports is in beta while we test with real exports, so if a column isn't recognised you can tell ReconOS which one it is.` },
+  { q: "I use more than one courier and gateway. Does that work?", a: "Yes, that's what it's built for. Add every partner's files together. The dashboard shows the combined total, the Partners page splits every finding by courier and gateway, and each partner gets its own claim email." },
+  { q: "Why do I have to add my rates?", a: "Couriers and gateways charge what you negotiated, not a public price. ReconOS can only say a charge is too high if it knows what you agreed, so each partner needs its rate card before the audit runs. You can start from example rates, but change any that differ from your agreement." },
+  { q: "What's the difference between Claim and Check?", a: "Claim means your own files prove the money is owed, for example a delivered COD order with no payout. Check means something doesn't add up but needs your eyes first, for example a paid order missing from a gateway's report." },
   { q: "Will this work if I only have some of the files?", a: "Yes. Start with Shopify orders. Every extra file switches on more checks, and the dashboard tells you which checks didn't run and why." },
   { q: "Is the sample data real?", a: "No. Indigo Loom is a made-up brand with a realistic month of orders and a known set of leaks, so you can see exactly what ReconOS finds." },
 ];
@@ -49,12 +56,12 @@ export function OverviewView({ result, setTab, source }: ViewCtx) {
     <div className="grid gap-16">
       <section className="grid items-center gap-10 pt-4 lg:grid-cols-[1.05fr_1fr] lg:pt-10">
         <div>
-          <p className="text-sm font-medium text-emerald-300">For Indian D2C brands on Shopify, Shiprocket and Razorpay</p>
+          <p className="text-sm font-medium text-emerald-300">For Indian D2C brands on Shopify, with any mix of couriers and payment gateways</p>
           <h1 className="mt-3 max-w-[18ch] text-4xl leading-[1.08] font-bold tracking-tight text-balance sm:text-5xl lg:text-6xl">
-            Find the money your courier and payment gateway still owe you.
+            Find the money your couriers and payment gateways still owe you.
           </h1>
           <p className="mt-5 max-w-[58ch] text-lg text-slate-300">
-            ReconOS traces every order from sale to payout to your bank, flags what's missing or overcharged, and writes the claim for you.
+            ReconOS reads the reports from every courier and gateway you use, traces each order from sale to payout to your bank, and writes the claim for each partner.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Btn variant="primary" className="px-5 py-3 text-base" onClick={() => setTab("dashboard")}>
@@ -73,7 +80,7 @@ export function OverviewView({ result, setTab, source }: ViewCtx) {
             <p className="font-semibold">Where money leaks between sale and bank</p>
             <ul className="mt-3 grid gap-2 text-sm">
               {[
-                ["Razorpay fees and settlement gaps", ["gateway_shortfall"]],
+                ["Gateway fees and settlement gaps", ["gateway_shortfall"]],
                 ["COD the courier didn't pay", ["cod_unpaid"]],
                 ["Shipping and weight charges", ["shipping_overcharge", "weight_dispute"]],
                 ["Payouts that never reached the bank", ["courier_payout_missing", "gateway_payout_missing"]],
@@ -118,6 +125,28 @@ export function OverviewView({ result, setTab, source }: ViewCtx) {
             </li>
           ))}
         </ol>
+      </section>
+
+      <section aria-labelledby="partners">
+        <h2 id="partners" className="text-2xl font-semibold tracking-tight sm:text-3xl">Works with your partners</h2>
+        <p className="mt-2 max-w-[62ch] text-slate-300">Add reports from as many as you use. ReconOS recognises who sent each file, checks it against that partner's rates, and keeps every finding separate.</p>
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          {[
+            { title: "Payment gateways", sub: "Settlement report from each", names: GATEWAY_NAMES },
+            { title: "Couriers and shipping aggregators", sub: "Shipments, COD remittance and weight reports from each", names: COURIER_NAMES },
+          ].map((g) => (
+            <Panel key={g.title} className="p-5">
+              <h3 className="font-semibold">{g.title}</h3>
+              <p className="mt-1 text-sm text-slate-400">{g.sub}</p>
+              <ul className="mt-4 flex flex-wrap gap-2">
+                {g.names.map((n) => <li key={n} className="rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm font-medium">{n}</li>)}
+              </ul>
+            </Panel>
+          ))}
+        </div>
+        <p className="mt-4 max-w-[75ch] text-sm text-slate-400">
+          All partners are in beta: each one is built from that partner's published report format, and we're testing against real exports now. If a column isn't recognised, you can match it by hand in a few clicks. Using a partner that isn't listed? Pick "Other" and match its columns.
+        </p>
       </section>
 
       <section aria-labelledby="see">
@@ -174,8 +203,8 @@ export function OverviewView({ result, setTab, source }: ViewCtx) {
           <h2 id="who" className="text-xl font-semibold">Who it's for</h2>
           <ul className="mt-3 grid gap-2 text-slate-300">
             <li>Brands selling on their own Shopify store</li>
-            <li>Shipping with Shiprocket, with a good share of cash-on-delivery orders</li>
-            <li>Taking prepaid payments through Razorpay</li>
+            <li>Shipping with Shiprocket, Delhivery, Ekart or any mix of couriers, with a good share of cash-on-delivery orders</li>
+            <li>Taking prepaid payments through Razorpay, PayU, Cashfree, PhonePe, Paytm or CCAvenue, one or several</li>
             <li>Roughly 300 to 30,000 orders a month, with no finance team checking payouts</li>
           </ul>
         </Panel>
@@ -183,8 +212,7 @@ export function OverviewView({ result, setTab, source }: ViewCtx) {
           <h2 className="text-xl font-semibold">Not built for yet</h2>
           <ul className="mt-3 grid gap-2 text-slate-300">
             <li>Amazon, Flipkart or Meesho settlements</li>
-            <li>Couriers booked directly without Shiprocket (Delhivery direct is next)</li>
-            <li>Cashfree, PayU or other gateways (coming after Razorpay)</li>
+            <li>Gateways outside India, like Stripe or PayPal</li>
             <li>Large finance teams who need approvals and Tally export</li>
           </ul>
         </Panel>

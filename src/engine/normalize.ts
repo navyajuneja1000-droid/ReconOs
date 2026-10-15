@@ -3,11 +3,14 @@ import type {
   Shipment, ShipStatus, Table, WeightDiscrepancy,
 } from "./types";
 import type { ColumnMap } from "./detect";
-import { extractRefs, money0, normAwb, normOrderId, parseDate, parseMoney } from "./util";
+import { gatewayFromShopify } from "./partners";
+import { extractRefs, money0, normAwb, normHeader, normOrderId, parseDate, parseMoney } from "./util";
 
 export interface ParsedFile {
   name: string;
   kind: FileKind;
+  /** partner id for courier and gateway files */
+  partner: string | null;
   table: Table;
   headerRow: number;
   map: ColumnMap;
@@ -28,7 +31,7 @@ function isBlankRow(row: unknown[]): boolean {
 export function paymentModeFrom(text: string, financialStatus = ""): PaymentMode {
   const t = text.toLowerCase();
   if (/cash on delivery|\bcod\b|cash_on_delivery|pay on delivery/.test(t)) return "cod";
-  if (/prepaid|razorpay|upi|card|net ?banking|wallet|payu|cashfree|paytm|phonepe|stripe|paypal|gokwik|simpl/.test(t)) return "prepaid";
+  if (/pre-?paid|razorpay|upi|card|net ?banking|wallet|payu|cashfree|paytm|phonepe|stripe|paypal|gokwik|simpl/.test(t)) return "prepaid";
   const fs = financialStatus.toLowerCase();
   if (fs === "pending") return "cod";
   if (fs === "paid" || fs.includes("refund")) return "prepaid";
@@ -56,6 +59,21 @@ function weightStatusFrom(text: string): WeightDiscrepancy["status"] {
   return "closed";
 }
 
+/** Weights written in grams ("Charged Weight (gm)") are converted to kg. */
+function weightReader(file: ParsedFile, key: string): (row: unknown[]) => number {
+  const col = file.map[key];
+  const head = col === undefined ? "" : normHeader(String(file.table[file.headerRow]?.[col] ?? ""));
+  const grams = /(^| )(g|gm|gms|gram|grams)( |$)/.test(head);
+  return (row) => {
+    if (col === undefined) return 0;
+    const n = money0(row[col]);
+    return grams ? n / 1000 : n;
+  };
+}
+
+/** Failed, dropped or pending gateway rows never moved money, so they are skipped. */
+const FAILED = /fail|drop|bounc|declin|abort|cancel|timeout|timed out|incomplete|initiated|not ?captured/i;
+
 function truthy(v: unknown): boolean | null {
   const s = str(v).toLowerCase();
   if (!s) return null;
@@ -67,11 +85,16 @@ function truthy(v: unknown): boolean | null {
 export function normalise(files: ParsedFile[]): Dataset {
   const ds: Dataset = {
     orders: [], shipments: [], charges: [], remittances: [], weights: [], gateway: [], bank: [],
-    present: {}, notes: [],
+    present: {}, partnerFiles: {}, notes: [],
   };
 
   for (const file of files) {
     ds.present[file.kind] = true;
+    const partner = file.partner ?? (file.kind === "gateway_settlements" ? "other_gateway" : "other_courier");
+    if (file.kind !== "shopify_orders" && file.kind !== "bank") {
+      const list = (ds.partnerFiles[partner] ??= []);
+      if (!list.includes(file.kind)) list.push(file.kind);
+    }
     const g = getter(file.map);
     const rows = file.table.slice(file.headerRow + 1).map((r, i) => ({ r, i: i + file.headerRow + 2 }));
 
@@ -98,6 +121,7 @@ export function normalise(files: ParsedFile[]): Dataset {
           const financialStatus = str(g(r, "financialStatus"));
           byId.set(id, {
             orderId: id,
+            gateway: null,
             displayId: display,
             createdAt: parseDate(g(r, "createdAt")),
             paymentMethod,
@@ -109,12 +133,14 @@ export function normalise(files: ParsedFile[]): Dataset {
             cancelled: !!str(g(r, "cancelledAt")) || /void/i.test(financialStatus),
           });
         }
+        for (const o of byId.values()) o.gateway = o.paymentMode === "prepaid" ? gatewayFromShopify(o.paymentMethod) : null;
         ds.orders.push(...byId.values());
         break;
       }
 
       case "courier_shipments": {
         const longFormat = file.map.chargeType !== undefined && file.map.chargeAmount !== undefined;
+        const chargedKg = weightReader(file, "chargedKg");
         const seenShip = new Map<string, Shipment>();
         for (const { r, i } of rows) {
           if (isBlankRow(r)) continue;
@@ -124,6 +150,7 @@ export function normalise(files: ParsedFile[]): Dataset {
           const statusText = str(g(r, "status"));
           if (!seenShip.has(awb)) {
             const ship: Shipment = {
+              partner,
               awb,
               orderId,
               courier: str(g(r, "courier")),
@@ -132,12 +159,14 @@ export function normalise(files: ParsedFile[]): Dataset {
               statusText,
               deliveredAt: parseDate(g(r, "deliveredAt")),
               codAmount: money0(g(r, "codAmount")),
+              chargedKg: chargedKg(r),
+              zone: str(g(r, "zone")),
             };
             seenShip.set(awb, ship);
             ds.shipments.push(ship);
           }
           const push = (type: ChargeType, amount: number) => {
-            if (amount > 0) ds.charges.push({ awb, orderId, type, amount, row: i });
+            if (amount > 0) ds.charges.push({ partner, awb, orderId, type, amount, row: i });
           };
           if (longFormat) {
             const t = str(g(r, "chargeType")).toLowerCase();
@@ -161,6 +190,7 @@ export function normalise(files: ParsedFile[]): Dataset {
           const remitted = parseMoney(g(r, "remitted"));
           if (!Number.isFinite(remitted)) continue;
           ds.remittances.push({
+            partner,
             awb,
             orderId,
             codAmount: money0(g(r, "codAmount")),
@@ -174,16 +204,19 @@ export function normalise(files: ParsedFile[]): Dataset {
       }
 
       case "courier_weight": {
+        const enteredKg = weightReader(file, "enteredKg");
+        const chargedKg = weightReader(file, "chargedKg");
         for (const { r } of rows) {
           if (isBlankRow(r)) continue;
           const awb = normAwb(g(r, "awb"));
           if (!awb) continue;
           const statusText = str(g(r, "status"));
           ds.weights.push({
+            partner,
             awb,
             orderId: normOrderId(g(r, "orderId")),
-            enteredKg: money0(g(r, "enteredKg")),
-            chargedKg: money0(g(r, "chargedKg")),
+            enteredKg: enteredKg(r),
+            chargedKg: chargedKg(r),
             extraCharge: money0(g(r, "extraCharge")),
             status: statusText ? weightStatusFrom(statusText) : "open",
             statusText,
@@ -194,30 +227,45 @@ export function normalise(files: ParsedFile[]): Dataset {
       }
 
       case "gateway_settlements": {
+        let skipped = 0;
         for (const { r } of rows) {
           if (isBlankRow(r)) continue;
           const id = str(g(r, "id")) || str(g(r, "paymentId"));
           if (!id) continue;
-          const typeText = (str(g(r, "type")) || id).toLowerCase();
+          const statusText = str(g(r, "status"));
+          if (statusText && FAILED.test(statusText)) { skipped++; continue; }
+          const typeText = (str(g(r, "type")) || (/refund/i.test(statusText) ? "refund" : "") || id).toLowerCase();
           const type: GatewayTxn["type"] =
-            /refund|rfnd_/.test(typeText) ? "refund"
-            : /payment|pay_/.test(typeText) ? "payment"
-            : /adjust|adj_/.test(typeText) ? "adjustment"
+            /refund|rfnd_|reversal/.test(typeText) ? "refund"
+            : /payment|pay_|sale|capture|success|acquir|collect|purchase|^txn/.test(typeText) ? "payment"
+            : /adjust|adj_|chargeback|dispute/.test(typeText) ? "adjustment"
+            : file.map.type === undefined ? "payment" // no type column: every row is a payment
             : "other";
+          const net = parseMoney(g(r, "net"));
           const utr = str(g(r, "utr")).toUpperCase();
           const settledAt = parseDate(g(r, "settledAt"));
           const settledFlag = truthy(g(r, "settled"));
           const international = truthy(g(r, "international")) === true;
+          const amount = Math.abs(money0(g(r, "amount")));
+          const fee = Math.abs(money0(g(r, "fee")));
+          const tax = Math.abs(money0(g(r, "tax")));
+          let credit = money0(g(r, "credit"));
+          let debit = money0(g(r, "debit"));
+          if (file.map.credit === undefined && file.map.debit === undefined && Number.isFinite(net)) {
+            if (net >= 0 && type !== "refund") credit = net;
+            else debit = Math.abs(net);
+          }
           ds.gateway.push({
+            partner,
             id,
             type,
             paymentId: type === "payment" ? id : str(g(r, "paymentId")),
             orderRef: normOrderId(g(r, "orderReceipt")),
-            amount: money0(g(r, "amount")),
-            fee: money0(g(r, "fee")),
-            tax: money0(g(r, "tax")),
-            credit: money0(g(r, "credit")),
-            debit: money0(g(r, "debit")),
+            amount,
+            fee,
+            tax,
+            credit,
+            debit,
             settled: settledFlag ?? (!!utr || !!settledAt),
             createdAt: parseDate(g(r, "createdAt")),
             settledAt,
@@ -228,6 +276,7 @@ export function normalise(files: ParsedFile[]): Dataset {
             international,
           } satisfies GatewayTxn);
         }
+        if (skipped) ds.notes.push(`${skipped} failed or incomplete payment${skipped === 1 ? " was" : "s were"} skipped in ${file.name}, since no money moved.`);
         break;
       }
 

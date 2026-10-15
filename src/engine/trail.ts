@@ -1,4 +1,6 @@
-import type { AuditResult, Dataset, Finding, PaymentMode, ShipStatus } from "./types";
+import type { AuditResult, Dataset, Finding, GatewayTxn, PaymentMode, ShipStatus } from "./types";
+import { refTokens } from "./audit";
+import { partnerName } from "./partners";
 import { normOrderId, r2 } from "./util";
 
 export type TrailState = "matched" | "pending" | "leak" | "check" | "no_cash_due" | "unknown";
@@ -11,8 +13,12 @@ export interface TrailRow {
   total: number;
   cancelled: boolean;
   shipStatus: ShipStatus | "not_shipped" | "unknown";
-  courier: string;
+  /** partner id that shipped it (Shiprocket, Delhivery, ...) */
+  courierPartner: string;
+  courier: string; // carrier named in the file
   awb: string;
+  /** partner id that took the payment */
+  gatewayPartner: string;
   expected: number; // money that should reach you from courier or gateway
   received: number; // paid out by courier / settled by gateway
   receivedRef: string; // UTR of the payout or settlement
@@ -32,7 +38,8 @@ export function buildTrail(data: Dataset, result: AuditResult): TrailRow[] {
     }
     if (f.awb) byAwb.set(f.awb, [...(byAwb.get(f.awb) ?? []), f]);
   }
-  const shipByOrder = new Map(data.shipments.map((s) => [s.orderId, s]));
+  const shipByOrder = new Map<string, (typeof data.shipments)[number]>();
+  for (const s of data.shipments) if (s.orderId && !shipByOrder.has(s.orderId)) shipByOrder.set(s.orderId, s);
   const remByOrder = new Map<string, { amt: number; utr: string }>();
   const remByAwb = new Map<string, { amt: number; utr: string }>();
   for (const r of data.remittances) {
@@ -44,12 +51,12 @@ export function buildTrail(data: Dataset, result: AuditResult): TrailRow[] {
     add(remByAwb, r.awb);
     add(remByOrder, r.orderId);
   }
-  const payByRef = new Map<string, (typeof data.gateway)[number]>();
-  const payByReceipt = new Map<string, (typeof data.gateway)[number]>();
+  const payById = new Map<string, GatewayTxn>();
+  const payByReceipt = new Map<string, GatewayTxn>();
   for (const g of data.gateway) {
     if (g.type !== "payment") continue;
-    payByRef.set(g.id.toLowerCase(), g);
-    if (g.orderRef) payByReceipt.set(g.orderRef, g);
+    payById.set(g.id.toLowerCase(), g);
+    if (g.orderRef && !payByReceipt.has(g.orderRef)) payByReceipt.set(g.orderRef, g);
   }
   const payoutMissing = new Map(
     result.findings.filter((f) => f.bucket === "courier_payout_missing" || f.bucket === "gateway_payout_missing").map((f) => [String(f.ref ?? "").toUpperCase(), f]),
@@ -63,29 +70,32 @@ export function buildTrail(data: Dataset, result: AuditResult): TrailRow[] {
       let expected = 0;
       let received = 0;
       let receivedRef = "";
-      let shipStatus: TrailRow["shipStatus"] = ship ? ship.status : data.shipments.length ? "not_shipped" : "unknown";
+      let gatewayPartner = o.gateway ?? "";
+      const shipStatus: TrailRow["shipStatus"] = ship ? ship.status : data.shipments.length ? "not_shipped" : "unknown";
       if (o.paymentMode === "cod") {
         if (ship?.status === "delivered") expected = ship.codAmount || o.total;
         const rem = (ship && remByAwb.get(ship.awb)) || remByOrder.get(o.orderId);
         if (rem) { received = rem.amt; receivedRef = rem.utr; }
       } else if (o.paymentMode === "prepaid") {
-        const token = o.paymentRef.toLowerCase().match(/pay_[a-z0-9]+/)?.[0];
-        const p = (token && payByRef.get(token)) || payByReceipt.get(o.orderId);
+        let p: GatewayTxn | undefined;
+        for (const t of refTokens(o.paymentRef)) if ((p = payById.get(t))) break;
+        p = p ?? payByReceipt.get(o.orderId);
         expected = o.cancelled ? 0 : o.total;
         if (p) {
+          gatewayPartner = p.partner;
           received = p.settled ? r2(p.credit || p.amount - p.fee - p.tax) : 0;
           receivedRef = p.utr;
           expected = r2(p.amount - p.fee - p.tax);
         }
       }
-      const inBank = bankText === null || !receivedRef ? (bankText === null ? null : false) : bankText.includes(receivedRef.toUpperCase());
+      const inBank = bankText === null ? null : receivedRef ? bankText.includes(receivedRef.toUpperCase()) : false;
       const missing = receivedRef ? payoutMissing.get(receivedRef.toUpperCase()) : undefined;
-      if (missing) fs.push(missing);
+      if (missing && !fs.includes(missing)) fs.push(missing);
       let state: TrailState;
       if (fs.some((f) => f.kind === "claim")) state = "leak";
       else if (fs.length) state = "check";
       else if (o.cancelled || (o.paymentMode === "cod" && shipStatus !== "delivered")) state = "no_cash_due";
-      else if (received > 0 && (inBank !== false)) state = "matched";
+      else if (received > 0 && inBank !== false) state = "matched";
       else if (expected > 0) state = "pending";
       else state = "unknown";
       return {
@@ -96,8 +106,10 @@ export function buildTrail(data: Dataset, result: AuditResult): TrailRow[] {
         total: o.total,
         cancelled: o.cancelled,
         shipStatus,
-        courier: ship?.courier ?? "",
+        courierPartner: ship?.partner ?? "",
+        courier: ship?.courier || (ship ? partnerName(ship.partner) : ""),
         awb: ship?.awb ?? "",
+        gatewayPartner,
         expected: r2(expected),
         received: r2(received),
         receivedRef,

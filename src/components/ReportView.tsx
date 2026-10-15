@@ -5,7 +5,6 @@ import { Btn, fmtDay, inr, Panel, useCopy } from "../ui";
 export function ReportView({ result, brandName, source }: ViewCtx) {
   const { copied, copy } = useCopy();
   const claims = result.findings.filter((f) => f.kind === "claim");
-  const byParty = (p: string) => claims.filter((f) => f.counterparty === p).reduce((a, f) => a + f.amount, 0);
   const c = result.cash;
   const name = source === "sample" ? "Indigo Loom (sample)" : brandName;
 
@@ -14,8 +13,7 @@ export function ReportView({ result, brandName, source }: ViewCtx) {
     `Orders ${fmtDay(result.period.from)} to ${fmtDay(result.period.to)}, checked ${fmtDay(result.asOf)}`,
     "",
     `Owed to you, with proof: ${inr(result.claimTotal)}`,
-    `  From Shiprocket: ${inr(byParty("Shiprocket"))}`,
-    `  From Razorpay: ${inr(byParty("Razorpay"))}`,
+    ...result.partners.map((p) => `  From ${p.name}: ${inr(p.claimTotal)}${p.checkTotal ? ` (plus ${inr(p.checkTotal)} to check)` : ""}`),
     `Needs a look: ${inr(result.checkTotal)}`,
     "",
     ...result.buckets.filter((b) => b.ran).map((b) => `${b.title}: ${inr(b.claimTotal)} to claim, ${inr(b.checkTotal)} to check`),
@@ -51,11 +49,18 @@ export function ReportView({ result, brandName, source }: ViewCtx) {
         <div className="grid gap-6 py-6 md:grid-cols-2">
           <div>
             <h2 className="font-semibold">By partner</h2>
-            <dl className="mt-3 grid gap-2 text-sm">
-              {["Shiprocket", "Razorpay"].map((p) => (
-                <div key={p} className="flex justify-between gap-3"><dt className="text-slate-300">{p}</dt><dd className="tabular-nums">{inr(byParty(p))}</dd></div>
-              ))}
-            </dl>
+            <table className="mt-3 w-full text-sm">
+              <thead className="text-left text-slate-400"><tr><th className="py-1 font-medium">Partner</th><th className="py-1 text-right font-medium">Claim</th><th className="py-1 text-right font-medium">Check</th></tr></thead>
+              <tbody className="divide-y divide-slate-800">
+                {result.partners.map((p) => (
+                  <tr key={p.id}>
+                    <td className="py-1.5 pr-3 text-slate-300">{p.name}<span className="text-slate-500"> {p.type === "gateway" ? "gateway" : "courier"}{p.missingFiles.length ? `, ${p.files.length} of ${p.files.length + p.missingFiles.length} reports` : ""}</span></td>
+                    <td className="py-1.5 text-right tabular-nums">{inr(p.claimTotal)}</td>
+                    <td className="py-1.5 text-right tabular-nums text-amber-300">{inr(p.checkTotal)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             <h2 className="mt-6 font-semibold">By leak type</h2>
             <table className="mt-3 w-full text-sm">
               <thead className="text-left text-slate-400"><tr><th className="py-1 font-medium">Type</th><th className="py-1 text-right font-medium">Claim</th><th className="py-1 text-right font-medium">Check</th></tr></thead>
@@ -77,9 +82,9 @@ export function ReportView({ result, brandName, source }: ViewCtx) {
                 ["Sold in Shopify", c.sold],
                 ["Gateway fees and GST", -(c.gatewayFees + c.gatewayTax)],
                 ["Shipping charges billed", -c.shippingCharges],
-                ["COD paid out by courier", c.codRemitted],
+                ["COD paid out by couriers", c.codRemitted],
                 ["COD delivered, not due yet", c.codPendingInGrace],
-                ["Settled by Razorpay", c.gatewaySettledNet],
+                ["Settled by gateways", c.gatewaySettledNet],
                 ["Refunded in Shopify", -c.refundedInShopify],
                 ...(c.reachedBank !== null ? [["Matched in your bank", c.reachedBank]] : []),
               ].map(([l, v]) => (

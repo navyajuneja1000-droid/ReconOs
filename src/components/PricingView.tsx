@@ -40,7 +40,7 @@ export function PricingView({ result, source }: ViewCtx) {
             {source === "sample" ? "In the sample data" : "In your files"}, ReconOS found {inr(result.claimTotal)} to claim over {days} days of orders. That's about {inr(perMonth)} a month, against {inr(PLANS[1].price)} for Starter.
           </p>
           <p className="mt-2 text-sm text-slate-400">
-            Based only on items with proof in {source === "sample" ? "the sample files" : "your own files"}. Real recoveries depend on what Shiprocket and Razorpay accept.
+            Based only on items with proof in {source === "sample" ? "the sample files" : "your own files"}. Real recoveries depend on what your couriers and gateways accept.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3">

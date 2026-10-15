@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from "react";
 import type { ViewCtx } from "../App";
 import { buildClaims, findingsCsv } from "../engine/claims";
-import type { BucketId, Counterparty, Finding } from "../engine/types";
+import type { BucketId, Finding } from "../engine/types";
+import { partnerName } from "../engine/partners";
 import { Btn, fmtDay, inr, KindTag, Panel, PanelHead, useCopy } from "../ui";
 
-function download(name: string, text: string, type = "text/csv") {
+export function download(name: string, text: string, type = "text/csv") {
   const url = URL.createObjectURL(new Blob([text], { type }));
   const a = document.createElement("a");
   a.href = url;
@@ -15,7 +16,7 @@ function download(name: string, text: string, type = "text/csv") {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function Item({ f }: { f: Finding }) {
+export function FindingItem({ f }: { f: Finding }) {
   return (
     <li className="grid gap-1 px-5 py-3 sm:grid-cols-[1fr_auto] sm:gap-4">
       <div className="min-w-0">
@@ -25,21 +26,27 @@ function Item({ f }: { f: Finding }) {
           {f.deadline && <span className={`text-xs font-medium ${(f.daysLeft ?? 9) <= 2 ? "text-rose-300" : "text-amber-300"}`}>Dispute by {fmtDay(f.deadline)}</span>}
         </div>
         <p className="mt-1 text-sm text-slate-300">{f.reason}</p>
-        <p className="mt-1 text-xs text-slate-500 [overflow-wrap:anywhere]">{[f.orderId && `Order ${f.orderId}`, f.awb && `AWB ${f.awb}`, f.ref && `Ref ${f.ref}`, `Raise with ${f.counterparty}`].filter(Boolean).join(", ")}</p>
+        <p className="mt-1 text-xs text-slate-500 [overflow-wrap:anywhere]">{[f.orderId && `Order ${f.orderId}`, f.awb && `AWB ${f.awb}`, f.ref && `Ref ${f.ref}`, f.counterparty === "Your team" && f.partner ? `About ${partnerName(f.partner)}, for your team` : `Raise with ${f.counterparty}`].filter(Boolean).join(", ")}</p>
       </div>
       <p className={`font-semibold tabular-nums sm:text-right ${f.kind === "claim" ? "text-emerald-400" : "text-amber-300"}`}>{inr(f.amount)}</p>
     </li>
   );
 }
 
-export function LeaksView({ result, brandName, source }: ViewCtx) {
+export function LeaksView({ result, brandName, source, partner: who, setPartner: setWho }: ViewCtx) {
   const [kind, setKind] = useState<"all" | "claim" | "check">("all");
-  const [who, setWho] = useState<"all" | Counterparty>("all");
   const { copied, copy } = useCopy();
-  const drafts = useMemo(() => buildClaims(result, source === "sample" ? "Indigo Loom" : brandName), [result, brandName, source]);
-  const shown = result.findings.filter((f) => (kind === "all" || f.kind === kind) && (who === "all" || f.counterparty === who));
+  const allDrafts = useMemo(() => buildClaims(result, source === "sample" ? "Indigo Loom" : brandName), [result, brandName, source]);
+  const matchWho = (f: Finding) => who === "all" || (who === "team" ? f.counterparty === "Your team" : f.partner === who);
+  const shown = result.findings.filter((f) => (kind === "all" || f.kind === kind) && matchWho(f));
   const groups = result.buckets.map((b) => ({ b, items: shown.filter((f) => f.bucket === b.id) })).filter((g) => g.items.length);
-  const whos = Array.from(new Set(result.findings.map((f) => f.counterparty)));
+  const drafts = allDrafts.filter((d) => who === "all" || d.partner === who);
+  const sumOf = (fs: Finding[]) => fs.reduce((a, f) => a + f.amount, 0);
+  const whos = [
+    ...result.partners.filter((p) => p.count > 0).map((p) => ({ id: p.id, label: p.name, total: p.claimTotal + p.checkTotal })),
+    ...(result.findings.some((f) => f.counterparty === "Your team") ? [{ id: "team", label: "Your team", total: sumOf(result.findings.filter((f) => f.counterparty === "Your team")) }] : []),
+  ];
+  const kindPool = result.findings.filter(matchWho);
 
   return (
     <div className="grid gap-6">
@@ -59,13 +66,13 @@ export function LeaksView({ result, brandName, source }: ViewCtx) {
       <div className="flex flex-wrap gap-2">
         {(["all", "claim", "check"] as const).map((k) => (
           <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className={`rounded-full border px-3 py-1.5 text-sm ${kind === k ? "border-emerald-400 bg-emerald-500/10 text-emerald-200" : "border-slate-700 text-slate-300 hover:border-slate-500"}`}>
-            {k === "all" ? `Everything ${inr(result.claimTotal + result.checkTotal)}` : k === "claim" ? `Claim ${inr(result.claimTotal)}` : `Check ${inr(result.checkTotal)}`}
+            {k === "all" ? `Everything ${inr(sumOf(kindPool))}` : k === "claim" ? `Claim ${inr(sumOf(kindPool.filter((f) => f.kind === "claim")))}` : `Check ${inr(sumOf(kindPool.filter((f) => f.kind === "check")))}`}
           </button>
         ))}
         <span className="mx-1 hidden h-8 w-px bg-slate-800 sm:block" />
-        {(["all", ...whos] as const).map((w) => (
-          <button key={w} type="button" aria-pressed={who === w} onClick={() => setWho(w as typeof who)} className={`rounded-full border px-3 py-1.5 text-sm ${who === w ? "border-sky-400 bg-sky-500/10 text-sky-200" : "border-slate-700 text-slate-300 hover:border-slate-500"}`}>
-            {w === "all" ? "Everyone" : w}
+        {[{ id: "all", label: "Every partner", total: 0 }, ...whos].map((w) => (
+          <button key={w.id} type="button" aria-pressed={who === w.id} onClick={() => setWho(w.id)} className={`rounded-full border px-3 py-1.5 text-sm ${who === w.id ? "border-sky-400 bg-sky-500/10 text-sky-200" : "border-slate-700 text-slate-300 hover:border-slate-500"}`}>
+            {w.label}{w.id !== "all" && <span className="ml-1 text-slate-400">{inr(w.total)}</span>}
           </button>
         ))}
       </div>
@@ -79,7 +86,7 @@ export function LeaksView({ result, brandName, source }: ViewCtx) {
                 sub={b.blurb}
                 right={<p className="font-semibold tabular-nums text-slate-100">{inr(items.reduce((a, f) => a + f.amount, 0))}</p>}
               />
-              <ul className="divide-y divide-slate-800">{items.map((f) => <Item key={f.id} f={f} />)}</ul>
+              <ul className="divide-y divide-slate-800">{items.map((f) => <FindingItem key={f.id} f={f} />)}</ul>
             </Panel>
           ))}
           {!groups.length && <Panel className="p-8 text-center text-slate-400">Nothing found for these filters.</Panel>}
@@ -91,7 +98,7 @@ export function LeaksView({ result, brandName, source }: ViewCtx) {
         </div>
 
         <div className="grid content-start gap-4">
-          <h2 className="text-lg font-semibold">Claim emails, ready to send</h2>
+          <h2 className="text-lg font-semibold">Claim emails, one per partner</h2>
           {drafts.map((d) => (
             <Panel key={d.counterparty} className="flex flex-col">
               <div className="border-b border-slate-800 px-5 py-4">
@@ -105,11 +112,11 @@ export function LeaksView({ result, brandName, source }: ViewCtx) {
               <pre className="max-h-72 overflow-auto whitespace-pre-wrap px-5 py-4 font-sans text-sm leading-relaxed text-slate-300">{d.body}</pre>
               <div className="flex flex-wrap gap-2 border-t border-slate-800 p-3">
                 <Btn variant="primary" onClick={() => copy(d.counterparty, `Subject: ${d.subject}\n\n${d.body}`)}>{copied === d.counterparty ? "Copied" : "Copy email"}</Btn>
-                <Btn onClick={() => download(`claim-${d.counterparty.toLowerCase()}.txt`, `Subject: ${d.subject}\n\n${d.body}`, "text/plain")}>Download</Btn>
+                <Btn onClick={() => download(`claim-${d.partner}.txt`, `Subject: ${d.subject}\n\n${d.body}`, "text/plain")}>Download</Btn>
               </div>
             </Panel>
           ))}
-          {!drafts.length && <Panel className="p-5 text-sm text-slate-400">No claims to send. Items marked Check need a look first.</Panel>}
+          {!drafts.length && <Panel className="p-5 text-sm text-slate-400">No claims to send{who !== "all" && who !== "team" ? ` to ${partnerName(who)}` : ""}. Items marked Check need a look first.</Panel>}
         </div>
       </div>
     </div>

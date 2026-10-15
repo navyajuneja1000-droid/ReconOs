@@ -2,7 +2,15 @@ import React from "react";
 import type { AuditResult, BucketId } from "../engine/types";
 import { inr } from "../ui";
 
-/** Order → Razorpay / Shiprocket → bank, with the amount leaking at each point in the current data. */
+/** Order → gateways / couriers → bank, with the amount leaking at each point in the current data. */
+/** "Razorpay, PayU" or "Shiprocket +2", short enough for the box. */
+function short(result: AuditResult, type: "gateway" | "courier") {
+  const names = result.partners.filter((p) => p.type === type).map((p) => p.name);
+  if (!names.length) return "";
+  const two = names.slice(0, 2).join(", ");
+  return two.length <= 20 && names.length <= 2 ? two : `${names[0]} +${names.length - 1}`;
+}
+
 export function MoneyTrail({ result }: { result: AuditResult }) {
   const amt = (...ids: BucketId[]) =>
     result.buckets.filter((b) => ids.includes(b.id)).reduce((a, b) => a + b.claimTotal + b.checkTotal, 0);
@@ -34,8 +42,8 @@ export function MoneyTrail({ result }: { result: AuditResult }) {
         <path d="M406 302 C 434 302, 430 196, 458 196" markerEnd="url(#arrow)" />
       </g>
       {box(10, 152, "Shopify order", "what you sold")}
-      {box(236, 30, "Razorpay", "prepaid orders")}
-      {box(236, 270, "Shiprocket", "cash on delivery")}
+      {box(236, 30, "Gateways", short(result, "gateway") || "prepaid orders")}
+      {box(236, 270, "Couriers", short(result, "courier") || "cash on delivery")}
       {box(462, 152, "Your bank", "what you keep", true)}
       {leak(248, 106, "fee and settlement gaps", amt("gateway_shortfall"))}
       {leak(248, 214, "COD not paid", amt("cod_unpaid"))}
