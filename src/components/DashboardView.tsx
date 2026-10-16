@@ -9,7 +9,7 @@ const SHORT: Record<string, string> = {
   cod_unpaid: "COD not paid",
   shipping_overcharge: "Shipping overcharges",
   weight_dispute: "Weight disputes",
-  gateway_shortfall: "Gateway shortfalls",
+  gateway_shortfall: "Gateway fees and gaps",
   courier_payout_missing: "Courier payout missing",
   gateway_payout_missing: "Gateway payout missing",
 };
@@ -51,7 +51,7 @@ export function DashboardView({ result, trail, setTab, source, brandName, setPar
           { l: "Worth a check", v: inr(result.checkTotal), s: `${result.findings.filter((f) => f.kind === "check").length} items to look at`, c: "text-amber-300", go: "leaks" as const },
           { l: "Orders fully traced", v: due ? `${Math.round((traced / due) * 100)}%` : "–", s: `${traced} of ${due} orders with money due, traced to your bank`, c: "text-slate-100", go: "orders" as const },
           { l: "Weight disputes closing", v: String(urgent.length), s: urgent[0]?.deadline ? `First one closes ${fmtDay(urgent[0].deadline)}` : "Nothing due this week", c: urgent.length ? "text-rose-300" : "text-slate-100", go: "leaks" as const },
-          { l: "Matched in your bank", v: c.reachedBank === null ? "–" : inr(c.reachedBank), s: c.reachedBank === null ? "Add a bank statement" : "Payouts found in your statement", c: "text-slate-100", go: c.reachedBank === null ? ("upload" as const) : ("report" as const) },
+          { l: "Found in your bank", v: c.reachedBank === null ? "–" : inr(c.reachedBank), s: c.reachedBank === null ? "Add a bank statement" : "Payouts found in your statement", c: "text-slate-100", go: c.reachedBank === null ? ("upload" as const) : ("report" as const) },
         ].map((k) => (
           <button key={k.l} type="button" onClick={() => setTab(k.go)} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-left transition hover:border-slate-600">
             <p className="text-sm text-slate-400">{k.l}</p>
@@ -98,9 +98,9 @@ export function DashboardView({ result, trail, setTab, source, brandName, setPar
               ["COD paid out by couriers", c.codRemitted],
               ...Object.entries(c.codRemittedBy).filter(() => Object.keys(c.codRemittedBy).length > 1).map(([p, v]) => [partnerName(p), v, false, true]),
               ["COD delivered, not due yet", c.codPendingInGrace],
-              ["Settled by gateways", c.gatewaySettledNet],
+              ["Paid out by gateways", c.gatewaySettledNet],
               ...Object.entries(c.gatewaySettledBy).filter(() => Object.keys(c.gatewaySettledBy).length > 1).map(([p, v]) => [partnerName(p), v, false, true]),
-              ...(c.reachedBank !== null ? [["Matched in your bank", c.reachedBank, true]] : []),
+              ...(c.reachedBank !== null ? [["Found in your bank", c.reachedBank, true]] : []),
             ].map(([l, v, strong, indent]) => (
               <div key={String(l)} className={`flex items-baseline justify-between gap-3 ${indent ? "pl-4 text-slate-400" : "text-slate-300"}`}>
                 <dt className={strong ? "font-semibold text-slate-100" : ""}>{String(l)}</dt>
@@ -155,6 +155,13 @@ export function DashboardView({ result, trail, setTab, source, brandName, setPar
               </tbody>
             </table>
           </div>
+          {result.partners.filter((p) => p.type === "courier").length > 0 && (
+            <p className="border-t border-slate-800 px-5 py-3 text-sm">
+              <button type="button" onClick={() => { setPartner("all"); setTab("partners"); setTimeout(() => document.getElementById("compare-couriers")?.scrollIntoView({ behavior: "smooth" }), 50); }} className="text-emerald-300 hover:underline">
+                Which courier to ship with, zone by zone
+              </button>
+            </p>
+          )}
         </Panel>
       </div>
 

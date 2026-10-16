@@ -43,7 +43,7 @@ export const KIND_SPECS: KindSpec[] = [
   },
   {
     kind: "courier_shipments",
-    label: "Courier shipments & charges",
+    label: "Courier shipments and charges",
     source: "Your courier or Shiprocket panel → Shipments or Billing → Export",
     unlocks: "Delivery status for COD checks, and shipping overcharges.",
     fields: [
@@ -67,7 +67,7 @@ export const KIND_SPECS: KindSpec[] = [
   },
   {
     kind: "courier_cod",
-    label: "COD remittance",
+    label: "COD payouts",
     source: "Your courier or Shiprocket panel → COD remittance → Export",
     unlocks: "COD money not paid or short-paid to you.",
     fields: [
@@ -84,7 +84,7 @@ export const KIND_SPECS: KindSpec[] = [
   },
   {
     kind: "courier_weight",
-    label: "Weight discrepancies",
+    label: "Extra weight charges",
     source: "Your courier or Shiprocket panel → Weight discrepancy → Export",
     unlocks: "Extra weight charges you can still dispute, with deadlines.",
     fields: [
@@ -101,7 +101,7 @@ export const KIND_SPECS: KindSpec[] = [
   },
   {
     kind: "gateway_settlements",
-    label: "Gateway settlements",
+    label: "Gateway payouts (settlement report)",
     source: "Your gateway's dashboard → Reports → Settlement or transaction report",
     unlocks: "Missing settlements, fee and GST overcharges, refund mismatches.",
     fields: [

@@ -7,14 +7,14 @@ import { fmtDay, inr, KindTag, Panel } from "../ui";
 const STATE: Record<TrailState, { label: string; cls: string }> = {
   leak: { label: "Leak", cls: "bg-rose-500/15 text-rose-300 border-rose-500/30" },
   check: { label: "Check", cls: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
-  matched: { label: "Matched", cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
+  matched: { label: "All paid", cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
   pending: { label: "Not paid yet", cls: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
   no_cash_due: { label: "No cash due", cls: "bg-slate-700/40 text-slate-300 border-slate-600" },
   unknown: { label: "Can't tell", cls: "bg-slate-700/40 text-slate-400 border-slate-600" },
 };
 
 const SHIP: Record<string, string> = {
-  delivered: "Delivered", rto: "Returned (RTO)", in_transit: "In transit", cancelled: "Cancelled", lost: "Lost", other: "Other", not_shipped: "Not shipped", unknown: "No courier file",
+  delivered: "Delivered", rto: "Came back (RTO)", in_transit: "In transit", cancelled: "Cancelled", lost: "Lost", other: "Other", not_shipped: "Not shipped", unknown: "No courier file",
 };
 
 function Stage({ label, value, note, tone }: { label: string; value: string; note?: string; tone?: "bad" | "ok" | "muted" }) {
@@ -37,7 +37,7 @@ function Detail({ t, hasBank }: { t: TrailRow; hasBank: boolean }) {
         <Stage label="Sold" value={inr(t.total)} note={`${t.mode === "cod" ? "Cash on delivery" : "Prepaid"}${t.cancelled ? ", cancelled" : ""}`} />
         <Stage label="Shipment" value={SHIP[t.shipStatus]} note={[shipper, t.awb].filter(Boolean).join(", ")} tone={t.shipStatus === "rto" ? "muted" : undefined} />
         <Stage label={via} value={t.received ? inr(t.received) : "Nothing yet"} note={t.expected ? `Expected ${inr(t.expected)}` : "Nothing expected"} tone={t.received && t.received >= t.expected - 1 ? "ok" : t.expected ? "bad" : "muted"} />
-        <Stage label="Your bank" value={!hasBank ? "No statement added" : t.inBank ? "Found" : t.received ? "Not found" : "–"} note={t.receivedRef ? `UTR ${t.receivedRef}` : undefined} tone={!hasBank ? "muted" : t.inBank ? "ok" : t.received ? "bad" : "muted"} />
+        <Stage label="Your bank" value={!hasBank ? "No statement added" : t.inBank ? "Found" : t.received ? "Not found" : "–"} note={t.receivedRef ? `Bank ref ${t.receivedRef}` : undefined} tone={!hasBank ? "muted" : t.inBank ? "ok" : t.received ? "bad" : "muted"} />
       </div>
       {t.findings.length > 0 && (
         <ul className="grid gap-2">
@@ -86,7 +86,7 @@ export function OrderTrailView({ trail, data, result, partner, setPartner }: Vie
   return (
     <div className="grid gap-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Order trail</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Every order</h1>
         <p className="mt-1 max-w-[70ch] text-slate-300">Every order, traced from sale to the courier or gateway that handled it to your bank. Open a row to see each step and anything that went wrong.</p>
       </div>
 
@@ -116,7 +116,7 @@ export function OrderTrailView({ trail, data, result, partner, setPartner }: Vie
             </select>
           </label>
         )}
-        <input id="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search order, AWB or UTR" className="w-full min-w-0 flex-1 basis-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm sm:basis-auto sm:max-w-xs" />
+        <input id="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search order, AWB or bank reference" className="w-full min-w-0 flex-1 basis-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm sm:basis-auto sm:max-w-xs" />
         <p className="text-sm text-slate-400">{rows.length} orders</p>
       </div>
 

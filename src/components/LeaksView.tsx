@@ -52,7 +52,7 @@ export function LeaksView({ result, brandName, source, partner: who, setPartner:
     <div className="grid gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Leaks & claims</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Claims: money owed to you</h1>
           <p className="mt-1 max-w-[70ch] text-slate-300">
             <span className="text-emerald-300">Claim</span> means your files prove the money is owed. <span className="text-amber-300">Check</span> means something doesn't add up and needs a look before you raise it.
           </p>

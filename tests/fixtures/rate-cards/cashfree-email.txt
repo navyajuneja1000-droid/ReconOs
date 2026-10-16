@@ -1,0 +1,20 @@
+Hi team,
+
+As discussed on call, please find your revised Cashfree PG pricing effective 1st October:
+
+UPI - 1.2%
+Net banking - 1.8%
+Debit cards below Rs 2000 - 0.4%
+above Rs 2000 - 0.85%
+RuPay debit - zero MDR
+Visa and Mastercard credit cards - 1.75%
+RuPay credit cards - 1.5%
+Amex / Diners - 2.95%
+International cards - 3.5%
+Wallets - 1.9%
+Cardless EMI and Pay Later - 2.4%
+
+Applicable GST (18%) will be charged on the above. Settlement cycle remains T+1.
+
+Regards,
+Cashfree Payments

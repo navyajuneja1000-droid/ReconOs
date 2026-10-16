@@ -84,9 +84,9 @@ export function ReportView({ result, brandName, source }: ViewCtx) {
                 ["Shipping charges billed", -c.shippingCharges],
                 ["COD paid out by couriers", c.codRemitted],
                 ["COD delivered, not due yet", c.codPendingInGrace],
-                ["Settled by gateways", c.gatewaySettledNet],
+                ["Paid out by gateways", c.gatewaySettledNet],
                 ["Refunded in Shopify", -c.refundedInShopify],
-                ...(c.reachedBank !== null ? [["Matched in your bank", c.reachedBank]] : []),
+                ...(c.reachedBank !== null ? [["Found in your bank", c.reachedBank]] : []),
               ].map(([l, v]) => (
                 <div key={String(l)} className="flex justify-between gap-3"><dt className="text-slate-300">{String(l)}</dt><dd className="tabular-nums">{(v as number) < 0 ? "−" : ""}{inr(Math.abs(v as number))}</dd></div>
               ))}

@@ -357,3 +357,67 @@ describe("payment method rates", () => {
     }
   });
 });
+
+import { suggestCard, suggestCourier, suggestGateway } from "../src/engine/suggest";
+import { compareCouriers, MIN_SHIPMENTS } from "../src/engine/compare";
+import { extractGateway } from "../src/engine/rateExtract";
+import { emptyCard } from "../src/engine/partners";
+
+describe("rates from the brand's own files", () => {
+  const { data } = runAuditFull(intakes, rates);
+  it("suggests each gateway's real rate for every method seen in its files", () => {
+    for (const p of ["razorpay", "payu"]) {
+      const s = suggestGateway(data, p);
+      const pctKeys = Object.keys(s.values).filter((k) => k.startsWith("pct_"));
+      expect(pctKeys.length, p).toBeGreaterThan(3);
+      for (const k of pctKeys) expect(s.values[k], `${p} ${k}`).toBe(sample.cards[p].values[k]);
+      expect(s.values.gstPct).toBe("18");
+    }
+  });
+  it("suggests each courier's zone rates, COD fee and return charge", () => {
+    for (const p of ["shiprocket", "delhivery"]) {
+      const s = suggestCourier(data, p);
+      for (const k of ["zoneA_first", "zoneC_extra", "zoneE_first", "codPct", "codMin", "rtoPct"]) expect(s.values[k], `${p} ${k}`).toBe(sample.cards[p].values[k]);
+    }
+  });
+  it("keeps what the brand typed and still needs confirming", () => {
+    const card = suggestCard(data, { ...emptyCard("payu"), values: { pct_upi: "1.1" } });
+    expect(card.values.pct_upi).toBe("1.1");
+    expect(card.values.pct_netbanking).toBe("1.8");
+    expect(card.confirmed).toBe(false);
+    expect(card.notes?.pct_netbanking).toMatch(/From your files/);
+  });
+  it("can't make up rates for methods with no payments", () => {
+    const s = suggestGateway(data, "payu");
+    expect(s.values.pct_wallet).toBeUndefined();
+  });
+});
+
+describe("courier comparison", () => {
+  const { result: r, data } = runAuditFull(intakes, rates);
+  it("covers every shipment, split by courier and by the courier inside Shiprocket", () => {
+    const c = compareCouriers(data, r);
+    expect(c.rows.reduce((a, x) => a + x.shipments, 0)).toBe(data.shipments.length);
+    expect(c.rows.map((x) => x.label)).toContain("Delhivery");
+    expect(c.rows.some((x) => x.label.startsWith("Shiprocket via "))).toBe(true);
+    expect(c.zones).toEqual(["A", "B", "C", "D", "E"]);
+  });
+  it("only names a best courier with enough shipments, and explains why", () => {
+    for (const z of ["all", "A", "B", "C", "D", "E"] as const) {
+      const c = compareCouriers(data, r, z);
+      if (c.best) {
+        expect(c.best.shipments).toBeGreaterThanOrEqual(MIN_SHIPMENTS);
+        expect(c.bestWhy).toContain(c.best.label);
+      }
+    }
+  });
+});
+
+describe("unclear rates in a document", () => {
+  it("leaves a rate blank rather than borrowing a general one when its own line can't be read", () => {
+    const e = extractGateway(["Credit Card 1.75%", "RuPay Credit Card 15%"]);
+    expect(e.values.pct_creditVisa).toBe("1.75");
+    expect(e.values.pct_creditRupay).toBeUndefined();
+    expect(e.notes.pct_creditRupay).toMatch(/Couldn't read/);
+  });
+});

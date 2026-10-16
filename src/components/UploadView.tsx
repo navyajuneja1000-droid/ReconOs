@@ -5,6 +5,7 @@ import type { FileKind } from "../engine/types";
 import { isCardReady, LISTED, missingRates, PARTNER_BY_ID, PARTNERS, partnerTypeForKind, type RateCard } from "../engine/partners";
 import { readTable, UnsupportedFileError } from "../engine/readFile";
 import { FILE_METHODS } from "../engine/instruments";
+import type { Dataset } from "../engine/types";
 import { Btn, Panel, PanelHead } from "../ui";
 import { CardStatus, RateCardEditor } from "./RateCardEditor";
 
@@ -15,13 +16,21 @@ export interface TrayItem extends Intake {
 let seq = 0;
 
 const COURIER_KINDS: FileKind[] = ["courier_shipments", "courier_cod", "courier_weight"];
-const SHORT: Record<FileKind, string> = {
+export const SHORT: Record<FileKind, string> = {
   shopify_orders: "Shopify orders",
-  courier_shipments: "Shipments & charges",
-  courier_cod: "COD remittance",
-  courier_weight: "Weight discrepancies",
-  gateway_settlements: "Settlement report",
+  courier_shipments: "Shipments and charges",
+  courier_cod: "COD payouts",
+  courier_weight: "Extra weight charges",
+  gateway_settlements: "Payouts (settlement report)",
   bank: "Bank statement",
+};
+const WHY: Record<FileKind, string> = {
+  shopify_orders: "What you sold. Needed for every check.",
+  courier_shipments: "Which orders were delivered or came back, and what you were billed.",
+  courier_cod: "The cash the courier collected and paid you.",
+  courier_weight: "Extra charges after the courier re-weighed a parcel. You can dispute these.",
+  gateway_settlements: "Every online payment, the fee taken and what was paid to you.",
+  bank: "Shows which payouts actually reached your account.",
 };
 
 function Step({ n, title, sub, children }: { n: number; title: string; sub?: string; children: React.ReactNode }) {
@@ -40,8 +49,13 @@ function Step({ n, title, sub, children }: { n: number; title: string; sub?: str
 }
 
 export function UploadView({
-  items, setItems, brand, setBrand, cards, setCard, onRun,
+  items, setItems, brand, setBrand, cards, setCard, onRun, picked, setPicked, data,
 }: {
+  /** partners the brand said it works with */
+  picked: string[];
+  setPicked: (p: string[]) => void;
+  /** the files read so far, for filling rates from what was charged */
+  data: Dataset;
   items: TrayItem[];
   setItems: React.Dispatch<React.SetStateAction<TrayItem[]>>;
   brand: string;
@@ -56,6 +70,7 @@ export function UploadView({
   const [busy, setBusy] = useState(false);
   const [drag, setDrag] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Set<string>>(new Set());
   const ready = items.filter(isReady);
   const partnerIds = Object.keys(cards);
 
@@ -105,6 +120,29 @@ export function UploadView({
   }
 
   const kindsFor = (id: string) => new Set(ready.filter((i) => i.partner === id).map((i) => i.kind));
+  // partners ticked by the brand, plus any that sent a file
+  const shown = PARTNERS.filter((p) => picked.includes(p.id) || partnerIds.includes(p.id)).map((p) => p.id);
+  const toggle = (id: string) => setPicked(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]);
+  const chip = (id: string, name: string) => {
+    const on = shown.includes(id);
+    const locked = partnerIds.includes(id);
+    return (
+      <button key={id} type="button" id={`pick-${id}`} aria-pressed={on} disabled={locked} onClick={() => toggle(id)} title={locked ? "You've added a file from this partner" : undefined}
+        className={`rounded-full border px-3 py-1.5 text-sm transition ${on ? "border-emerald-400 bg-emerald-500/15 text-emerald-100" : "border-slate-700 text-slate-300 hover:border-slate-500"} disabled:cursor-default`}>
+        {on ? "✓ " : ""}{name}
+      </button>
+    );
+  };
+  const reportRow = (key: string, label: string, why: string, where: string | undefined, added: boolean, must = false) => (
+    <li key={key} className="flex items-start justify-between gap-3 py-2">
+      <span className="min-w-0">
+        <span className="font-medium text-slate-200">{label}</span>
+        <span className="block text-xs text-slate-400">{why}</span>
+        {!added && where && <span className="block text-xs text-slate-500">How to get it: {where}</span>}
+      </span>
+      <span className={`shrink-0 text-xs font-medium ${added ? "text-emerald-300" : must ? "text-amber-300" : "text-slate-500"}`}>{added ? "✓ Added" : must ? "Needed" : "Not yet"}</span>
+    </li>
+  );
   const haveShopify = ready.some((i) => i.kind === "shopify_orders");
   const haveBank = ready.some((i) => i.kind === "bank");
 
@@ -115,7 +153,44 @@ export function UploadView({
         <p className="mt-1 max-w-[68ch] text-slate-300">Add last month's exports from Shopify, every courier and every payment gateway you use, and your bank. ReconOS reads each one in this browser tab and never uploads it anywhere.</p>
       </div>
 
-      <Step n={1} title="Add your reports" sub="Drop them all at once. ReconOS works out what each file is and which partner sent it. Check the partner on each file before moving on.">
+      <Step n={1} title="Who do you work with?" sub="Tick every payment gateway and courier you use. We'll show you exactly which reports to download from each.">
+        <Panel className="grid gap-4 p-5">
+          <div>
+            <p className="text-sm font-medium text-slate-300">Payment gateways</p>
+            <div className="mt-2 flex flex-wrap gap-2">{LISTED.gateways.map((p) => chip(p.id, p.name))}{chip("other_gateway", "Other")}</div>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-300">Couriers and shipping platforms</p>
+            <div className="mt-2 flex flex-wrap gap-2">{LISTED.couriers.map((p) => chip(p.id, p.name))}{chip("other_courier", "Other")}</div>
+          </div>
+        </Panel>
+        <Panel>
+          <PanelHead title="Reports to download" sub="Last month is a good start. Each one switches on more checks." />
+          <div className="gap-x-8 px-5 py-2 text-sm md:columns-2">
+            <div className="break-inside-avoid">
+              <p className="pt-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">Your store and bank</p>
+              <ul className="divide-y divide-slate-800">
+                {reportRow("shopify", SHORT.shopify_orders, WHY.shopify_orders, SPEC_BY_KIND.shopify_orders.source, haveShopify, true)}
+                {reportRow("bank", SHORT.bank, WHY.bank, SPEC_BY_KIND.bank.source, haveBank)}
+              </ul>
+            </div>
+            {shown.map((id) => {
+              const p = PARTNER_BY_ID[id];
+              const have = kindsFor(id);
+              const kinds = p.type === "courier" ? COURIER_KINDS : (["gateway_settlements"] as FileKind[]);
+              return (
+                <div key={id} className="break-inside-avoid">
+                  <p className="pt-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">{p.name}</p>
+                  <ul className="divide-y divide-slate-800">{kinds.map((k) => reportRow(`${id}-${k}`, SHORT[k], WHY[k], p.reports[k], have.has(k), k !== "courier_weight"))}</ul>
+                </div>
+              );
+            })}
+          </div>
+          {!shown.length && <p className="border-t border-slate-800 px-5 py-3 text-sm text-slate-400">Tick your gateways and couriers above to see their reports.</p>}
+        </Panel>
+      </Step>
+
+      <Step n={2} title="Drop the reports in" sub="All at once is fine. ReconOS works out what each file is and who sent it. Check the partner on each file.">
         <div
           onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
           onDragLeave={() => setDrag(false)}
@@ -123,12 +198,12 @@ export function UploadView({
           className={`rounded-xl border-2 border-dashed p-6 text-center transition ${drag ? "border-emerald-400 bg-emerald-500/10" : "border-slate-700 bg-slate-900/40"}`}
         >
           <p className="text-lg font-semibold">Drop your reports here</p>
-          <p className="mt-1 text-sm text-slate-400">CSV or Excel (.xlsx), from as many couriers and gateways as you use.</p>
+          <p className="mt-1 text-sm text-slate-400">CSV or Excel (.xlsx). Files are read on this device and never uploaded.</p>
           <input ref={input} id="file-input" type="file" multiple accept=".csv,.xlsx,.xls,.txt" className="sr-only" onChange={(e) => { if (e.target.files) add(e.target.files); e.target.value = ""; }} />
           <Btn variant="primary" className="mt-4" onClick={() => input.current?.click()} disabled={busy}>{busy ? "Reading files" : "Choose files"}</Btn>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
+        <div className="grid gap-6">
           <Panel>
             <PanelHead title="Your files" sub={items.length ? `${ready.length} of ${items.length} ready` : "Nothing added yet"} />
             <ul className="divide-y divide-slate-800">
@@ -151,10 +226,11 @@ export function UploadView({
                         <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${ok ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"}`}>
                           {ok ? "Ready" : columnsOk && type && !it.partner ? "Who sent it?" : "Needs your help"}
                         </span>
+                        {ok && !editing.has(it.uid) && <Btn variant="ghost" className="px-2 py-1" onClick={() => setEditing(new Set([...editing, it.uid]))}>Change</Btn>}
                         <Btn variant="ghost" className="px-2 py-1" onClick={() => setItems((p) => p.filter((x) => x.uid !== it.uid))}>Remove</Btn>
                       </div>
                     </div>
-                    <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                    {(!ok || editing.has(it.uid)) && <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
                       <label className="grid gap-1">
                         <span className="text-slate-300">File type</span>
                         <select id={`kind-${it.uid}`} value={it.kind ?? ""} onChange={(e) => setKind(it.uid, e.target.value as FileKind | "")} className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1.5">
@@ -167,7 +243,7 @@ export function UploadView({
                           <span className="text-slate-300">Sent by <span className="text-rose-300">*</span></span>
                           <select id={`partner-${it.uid}`} value={it.partner ?? ""} onChange={(e) => setPartner(it.uid, e.target.value)} className={`rounded-md border bg-slate-900 px-2 py-1.5 ${it.partner ? "border-slate-700" : "border-amber-500/70"}`}>
                             <option value="">Choose the {type === "courier" ? "courier" : "gateway"}</option>
-                            {PARTNERS.filter((p) => p.type === type).map((p) => <option key={p.id} value={p.id}>{p.name}{p.aggregator ? " (aggregator)" : ""}</option>)}
+                            {PARTNERS.filter((p) => p.type === type).map((p) => <option key={p.id} value={p.id}>{p.name}{p.aggregator ? " (shipping platform)" : ""}</option>)}
                           </select>
                         </label>
                       )}
@@ -180,7 +256,10 @@ export function UploadView({
                           {!it.methodHint && <span className="text-xs text-slate-400">With a mix, each payment is checked against your highest rate, so only clear overcharges are flagged.</span>}
                         </label>
                       )}
-                    </div>
+                    </div>}
+                    {ok && !editing.has(it.uid) && it.kind === "gateway_settlements" && it.map.method === undefined && (
+                      <p className="mt-1 text-xs text-slate-400">No payment method column, so ReconOS reads this file as: {FILE_METHODS.find((m) => m.key === it.methodHint)?.label}. <button type="button" className="text-emerald-300 hover:underline" onClick={() => setEditing(new Set([...editing, it.uid]))}>Change</button></p>
+                    )}
                     {it.kind && !columnsOk && (
                       <div className="mt-3 grid gap-3 rounded-lg bg-slate-950/60 p-3 text-sm">
                         <p className="text-slate-300">Tell ReconOS which column holds each of these.</p>
@@ -208,44 +287,10 @@ export function UploadView({
             </ul>
           </Panel>
 
-          <Panel>
-            <PanelHead title="What to add" sub="Each partner's reports switch on its checks" />
-            <ul className="divide-y divide-slate-800 text-sm">
-              <li className="flex items-baseline justify-between gap-3 px-5 py-3">
-                <span><span className="font-medium">Shopify orders</span><span className="block text-xs text-slate-400">{SPEC_BY_KIND.shopify_orders.source}</span></span>
-                <span className={`shrink-0 text-xs font-medium ${haveShopify ? "text-emerald-300" : "text-amber-300"}`}>{haveShopify ? "Added" : "Start here"}</span>
-              </li>
-              {partnerIds.map((id) => {
-                const p = PARTNER_BY_ID[id];
-                const have = kindsFor(id);
-                const kinds = p.type === "courier" ? COURIER_KINDS : (["gateway_settlements"] as FileKind[]);
-                return (
-                  <li key={id} className="px-5 py-3">
-                    <p className="font-medium">{p.name}</p>
-                    <ul className="mt-1.5 grid gap-1">
-                      {kinds.map((k) => (
-                        <li key={k} className="flex items-baseline justify-between gap-3">
-                          <span className="text-slate-300">{SHORT[k]}{!have.has(k) && <span className="block text-xs text-slate-500">{p.reports[k]}</span>}</span>
-                          <span className={`shrink-0 text-xs font-medium ${have.has(k) ? "text-emerald-300" : "text-slate-500"}`}>{have.has(k) ? "Added" : "Not added"}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                );
-              })}
-              <li className="flex items-baseline justify-between gap-3 px-5 py-3">
-                <span><span className="font-medium">Bank statement</span><span className="block text-xs text-slate-400">Shows which payouts actually reached you. {SPEC_BY_KIND.bank.source}</span></span>
-                <span className={`shrink-0 text-xs font-medium ${haveBank ? "text-emerald-300" : "text-slate-500"}`}>{haveBank ? "Added" : "Recommended"}</span>
-              </li>
-              <li className="px-5 py-3 text-xs text-slate-400">
-                Works with {LISTED.gateways.map((p) => p.name).join(", ")} and {LISTED.couriers.map((p) => p.name).join(", ")}. Using another one? Choose "Other" as the sender and match its columns.
-              </li>
-            </ul>
-          </Panel>
         </div>
       </Step>
 
-      <Step n={2} title="Add each partner's rates (required)" sub="ReconOS checks every fee and shipping charge against the rates you agreed. Rates differ from brand to brand, so each courier and gateway needs its own rate card before the audit runs.">
+      <Step n={3} title="Check each partner's rates (required)" sub="ReconOS checks every fee and shipping charge against the rates you agreed. We've filled in what you were charged most often. Check each number against your agreement, or fill it from your rate card document, then tick to confirm.">
         {!partnerIds.length ? (
           <Panel className="p-5 text-sm text-slate-400">A rate card for each courier and gateway appears here as soon as you add its file.</Panel>
         ) : (
@@ -263,7 +308,7 @@ export function UploadView({
                     </span>
                     <span className="flex items-center gap-3"><CardStatus card={c} /><span aria-hidden="true" className="text-slate-500">{isOpen ? "−" : "+"}</span></span>
                   </button>
-                  {isOpen && <div className="border-t border-slate-800 px-5 py-4"><RateCardEditor card={c} onChange={setCard} /></div>}
+                  {isOpen && <div className="border-t border-slate-800 px-5 py-4"><RateCardEditor card={c} onChange={setCard} data={data} /></div>}
                 </Panel>
               );
             })}
@@ -271,7 +316,7 @@ export function UploadView({
         )}
       </Step>
 
-      <Step n={3} title="Run the audit">
+      <Step n={4} title="Run the audit">
         <Panel className="grid gap-5 p-5 md:grid-cols-[1fr_1.3fr] md:items-start">
           <label className="grid gap-1 text-sm">
             <span className="font-medium">Brand name</span>

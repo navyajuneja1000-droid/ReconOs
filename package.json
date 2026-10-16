@@ -10,7 +10,9 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "inspect": "tsx scripts/inspect.ts"
+    "inspect": "tsx scripts/inspect.ts",
+    "predev": "node scripts/copy-ocr.mjs",
+    "prebuild": "node scripts/copy-ocr.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -22,11 +24,14 @@
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "papaparse": "^5.7.0",
+    "pdfjs-dist": "^4.10.38",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "read-excel-file": "^9.3.12",
     "recharts": "^3.10.1",
-    "vite": "^6.2.3"
+    "tesseract.js": "^5.1.1",
+    "vite": "^6.2.3",
+    "@tesseract.js-data/eng": "^1.0.0"
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",

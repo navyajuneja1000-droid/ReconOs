@@ -32,7 +32,7 @@ const WHY = [
 
 const STEPS = [
   { title: "Export last month's reports", body: "Shopify orders, the shipment, COD and weight reports from each courier, the settlement report from each gateway, and your bank statement." },
-  { title: "Drop them in and add your rates", body: "Each file is matched to the partner that sent it. Add each partner's rate card once, so every charge is checked against what you agreed. Nothing is uploaded." },
+  { title: "Drop them in and confirm your rates", body: "Each file is matched to the partner that sent it. Rates are filled in from what you were charged, or read from your rate card PDF or screenshot. You check and confirm. Nothing is uploaded." },
   { title: "See the total, then each partner", body: "One combined dashboard, and every finding split by courier and gateway. Gaps are marked Claim when the files prove it, or Check when they need a look." },
   { title: "Send the claims", body: "One ready-to-send email per partner lists every order and amount. Weight disputes come with the last date you can raise them." },
 ];
@@ -41,7 +41,8 @@ const FAQ = [
   { q: "Do my files get uploaded?", a: "No. ReconOS runs in your browser tab. Your files are read on your computer and disappear when you close the tab." },
   { q: "Which couriers and gateways work today?", a: `Gateways: ${list(GATEWAY_NAMES)}. Couriers and shipping aggregators: ${list(COURIER_NAMES)}. Plus Shopify and any bank statement saved as CSV or Excel. Reading partner reports is in beta while we test with real exports, so if a column isn't recognised you can tell ReconOS which one it is.` },
   { q: "I use more than one courier and gateway. Does that work?", a: "Yes, that's what it's built for. Add every partner's files together. The dashboard shows the combined total, the Partners page splits every finding by courier and gateway, and each partner gets its own claim email." },
-  { q: "Why do I have to add my rates?", a: "Couriers and gateways charge what you negotiated, not a public price. ReconOS can only say a charge is too high if it knows what you agreed, so each partner needs its rate card before the audit runs. Gateways get a rate for each payment method (UPI, debit cards above and below ₹2,000, RuPay, each credit card network, Amex, net banking and more); couriers get a rate for each zone. You can start from example rates, but change any that differ from your agreement." },
+  { q: "Why do I have to add my rates?", a: "Couriers and gateways charge what you negotiated, not a public price. ReconOS can only say a charge is too high if it knows what you agreed, so each partner needs its rate card before the audit runs. Gateways get a rate for each payment method (UPI, debit cards above and below ₹2,000, RuPay, each credit card network, Amex, net banking and more); couriers get a rate for each zone. To save typing, ReconOS fills them in from what you were charged most often, or reads them from your rate card or agreement (a PDF, a screenshot, an Excel sheet or text from an email). You check every number before the audit runs." },
+  { q: "Can it tell me which courier to use?", a: "Yes. The Partners page compares every courier, including each one you book through Shiprocket, zone by zone: how many parcels came back, how fast COD was paid, how often you were overcharged, and what each 500 g delivered really cost." },
   { q: "My gateway sends one file for UPI and another for cards. Is that okay?", a: "Yes. Add them all. Files from the same gateway are combined, and if a file has no payment method column, ReconOS reads the method from the file name or asks you." },
   { q: "What's the difference between Claim and Check?", a: "Claim means your own files prove the money is owed, for example a delivered COD order with no payout. Check means something doesn't add up but needs your eyes first, for example a paid order missing from a gateway's report." },
   { q: "Will this work if I only have some of the files?", a: "Yes. Start with Shopify orders. Every extra file switches on more checks, and the dashboard tells you which checks didn't run and why." },
@@ -134,7 +135,7 @@ export function OverviewView({ result, setTab, source }: ViewCtx) {
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           {[
             { title: "Payment gateways", sub: "Settlement report from each", names: GATEWAY_NAMES },
-            { title: "Couriers and shipping aggregators", sub: "Shipments, COD remittance and weight reports from each", names: COURIER_NAMES },
+            { title: "Couriers and shipping platforms", sub: "Shipments, COD payouts and extra weight charges from each", names: COURIER_NAMES },
           ].map((g) => (
             <Panel key={g.title} className="p-5">
               <h3 className="font-semibold">{g.title}</h3>
@@ -164,7 +165,7 @@ export function OverviewView({ result, setTab, source }: ViewCtx) {
               { l: "You can claim", v: inr(result.claimTotal), c: "text-emerald-400" },
               { l: "Worth a check", v: inr(result.checkTotal), c: "text-amber-300" },
               { l: "Sold in Shopify", v: inr(result.cash.sold), c: "text-slate-100" },
-              { l: "Matched in your bank", v: result.cash.reachedBank === null ? "Add a statement" : inr(result.cash.reachedBank), c: "text-slate-100" },
+              { l: "Found in your bank", v: result.cash.reachedBank === null ? "Add a statement" : inr(result.cash.reachedBank), c: "text-slate-100" },
             ].map((k) => (
               <div key={k.l} className="p-5">
                 <p className="text-sm text-slate-400">{k.l}</p>

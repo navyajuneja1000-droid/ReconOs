@@ -60,13 +60,15 @@ const CATALOG = [
   { sku: "IL-CRD-01", name: "Cotton co-ord set", price: 1899, kg: 0.6 },
   { sku: "IL-STL-01", name: "Hand block stole", price: 699, kg: 0.18 },
 ];
-const SR_COURIERS = ["Delhivery Surface", "Xpressbees", "Ekart Logistics", "Blue Dart", "Shadowfax"];
+const SR_COURIERS = ["Delhivery Surface", "Xpressbees", "Blue Dart"];
+/** How often COD parcels come back, relative to the average, so the courier comparison has something to show. */
+const RTO_FACTOR: Record<string, number> = { "Delhivery Surface": 1, Xpressbees: 1.6, "Blue Dart": 0.55, Delhivery: 0.8 };
 const CITIES = ["Mumbai", "Pune", "Bengaluru", "Hyderabad", "Lucknow", "Patna", "Indore", "Kolkata", "Jaipur", "Delhi", "Surat", "Kochi"];
 
 /** The brand's agreed rates. Shiprocket and Delhivery price each extra 500 g the same as the first. */
 const COURIER = {
-  shiprocket: { zone: { A: 34, B: 41, C: 49, D: 58, E: 72 } as Record<Zone, number>, codPct: 1.5, codMin: 30, codDays: [2, 5] },
-  delhivery: { zone: { A: 32, B: 38, C: 45, D: 55, E: 68 } as Record<Zone, number>, codPct: 1.75, codMin: 35, codDays: [3, 6] },
+  shiprocket: { zone: { A: 34, B: 41, C: 49, D: 58, E: 72 } as Record<Zone, number>, codPct: 1.5, codMin: 30, codDays: [2, 5], codDelay: 7 },
+  delhivery: { zone: { A: 32, B: 38, C: 45, D: 55, E: 68 } as Record<Zone, number>, codPct: 1.75, codMin: 35, codDays: [3, 6], codDelay: 4 },
 } as const;
 type CourierId = keyof typeof COURIER;
 /** Each gateway prices every payment method differently. */
@@ -208,7 +210,8 @@ export function generateSample(seed = 20260914): SampleData {
     const zone = pick(ZONES);
     const freight = c.zone[zone] * slabs;
     const codFee = o.cod ? r2(Math.max(c.codMin, (o.total * c.codPct) / 100)) : 0;
-    const rto = rand() < (o.cod ? 0.2 : 0.03);
+    const courier = partner === "shiprocket" ? pick(SR_COURIERS) : "Delhivery";
+    const rto = rand() < (o.cod ? 0.2 : 0.03) * RTO_FACTOR[courier] * (zone === "E" ? 1.3 : 1);
     const delivered = new Date(o.created.getTime() + between(2, 5) * DAY + between(1, 8) * 3600_000);
     let status: GenShip["status"] = rto ? "RTO Delivered" : "Delivered";
     if (delivered > asOf) status = "In Transit";
@@ -216,7 +219,7 @@ export function generateSample(seed = 20260914): SampleData {
       order: o,
       partner,
       awb: partner === "shiprocket" ? `1${digits(13)}` : `2${digits(13)}`,
-      courier: partner === "shiprocket" ? pick(SR_COURIERS) : "Delhivery",
+      courier,
       zone,
       slabs,
       freight,
@@ -281,7 +284,7 @@ export function generateSample(seed = 20260914): SampleData {
   const shorts = new Map(codPool.slice(4, 7).map((s, i) => [s.awb, [50, 120, 300][i]]));
   const batchKey = new Map<string, { crf: string; utr: string }>();
   for (const s of deliveredCod) {
-    let d = dayStart(new Date(s.delivered!.getTime() + 7 * DAY));
+    let d = dayStart(new Date(s.delivered!.getTime() + COURIER[s.partner].codDelay * DAY));
     while (!(COURIER[s.partner].codDays as readonly number[]).includes(d.getUTCDay())) d = new Date(d.getTime() + DAY);
     if (d > asOf) continue; // not yet due
     if (unpaid.has(s.awb)) {

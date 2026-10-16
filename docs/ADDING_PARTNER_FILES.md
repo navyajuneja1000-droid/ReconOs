@@ -71,3 +71,13 @@ sends passes. The "in beta" note disappears from that partner's pages.
 
 Run `npm test`, then try the real files together in the app (`npm run dev`, Upload files) with the
 brand's real rate cards, and read every finding for that partner on the Partners page.
+
+## Adding a real rate card
+
+When a brand shares its real rate card or addendum, check it reads correctly:
+
+1. Put a copy with names and account details removed in `tests/fixtures/rate-cards/`.
+2. Add what it should read to `tests/fixtures/rate-cards/expected.json` (the keys are the rate card fields, for example `pct_upi`, `zoneA_first`, `codMin`).
+3. Run `npm test`. If a value is missed or wrong, the test prints every line it read, so you can see what to add to the rules in `src/engine/rateExtract.ts`.
+
+Screenshots are read with OCR on the device. In testing, clear screenshots read every value correctly; small, blurry or heavily bordered images can drop decimal points, so a rate that looks wrong is left blank for the founder rather than guessed.

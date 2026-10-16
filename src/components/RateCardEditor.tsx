@@ -1,10 +1,22 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   COURIER_EXTRA_FIELDS, exampleCard, fixKey, GATEWAY_FIELDS, isCardComplete, isCardReady, missingRates, PARTNER_BY_ID,
   pctKey, ZONE_LABEL, zoneKey, ZONES, type RateCard, type RateField,
 } from "../engine/partners";
 import { INSTRUMENTS } from "../engine/instruments";
+import { extractRates, toLines } from "../engine/rateExtract";
+import { suggestCard } from "../engine/suggest";
+import type { Dataset } from "../engine/types";
 import { Btn } from "../ui";
+
+const sameZones = (v: Record<string, string>) => ZONES.every((z) => (v[zoneKey(z, "extra")] ?? "") === (v[zoneKey(z, "first")] ?? ""));
+
+/** Small note under a field: where its value came from. */
+function Note({ text }: { text?: string }) {
+  if (!text) return null;
+  const warn = /^Heads up|Couldn't read/.test(text);
+  return <span className={`block text-xs ${warn ? "text-amber-300" : "text-emerald-300/80"}`}>{text}</span>;
+}
 
 export function CardStatus({ card }: { card: RateCard | undefined }) {
   if (isCardReady(card)) return <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300">Rates confirmed</span>;
@@ -37,21 +49,81 @@ function Num({ id, value, onChange, unit, label, blankWarn, placeholder = "–" 
  * One partner's rate card. Every rate is required; the founder can start from example rates
  * but must tick that they match their own agreement before the audit runs.
  */
-export function RateCardEditor({ card, onChange, compact = false }: { card: RateCard; onChange: (c: RateCard) => void; compact?: boolean }) {
+export function RateCardEditor({ card, onChange, compact = false, data }: { card: RateCard; onChange: (c: RateCard) => void; compact?: boolean; data?: Dataset }) {
   const p = PARTNER_BY_ID[card.partner];
-  const zonesSame = ZONES.every((z) => (card.values[zoneKey(z, "extra")] ?? "") === (card.values[zoneKey(z, "first")] ?? ""));
-  const [same, setSame] = useState(zonesSame);
+  const [same, setSame] = useState(sameZones(card.values));
   const [touched, setTouched] = useState(false);
   const [quick, setQuick] = useState("");
+  const [reading, setReading] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
+  const [paste, setPaste] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   if (!p) return null;
+  const notes = card.notes ?? {};
+
+  /** Rates read from a document replace what's there; the files then show if they were charged differently. */
+  const applyDocument = (lines: string[], from: string) => {
+    const got = extractRates(lines, p.type);
+    const n = Object.keys(got.values).filter((k) => !k.startsWith("fix_") || got.values[k] !== "0").length;
+    if (!n) {
+      setMsg({ text: `No rates could be read from ${from}. Try a clearer file, or paste the rates as text.`, bad: true });
+      return;
+    }
+    const values = { ...card.values, ...got.values };
+    const fresh: Record<string, string> = { ...notes };
+    for (const [k, line] of Object.entries(got.notes)) fresh[k] = k in got.values ? `From your document: "${line.length > 70 ? `${line.slice(0, 70)}…` : line}"` : line;
+    let differ = 0;
+    if (data) {
+      const charged = suggestCard(data, { partner: card.partner, values: {}, confirmed: false, example: false });
+      for (const [k, v] of Object.entries(got.values)) {
+        const c = charged.values[k];
+        if (c !== undefined && Number(c) !== Number(v) && !/days|Days/.test(k)) {
+          fresh[k] = `Heads up: your document says ${v}, but most of your ${p.name} charges in the files were at ${c}. That gap may be money owed.`;
+          differ++;
+        }
+      }
+    }
+    if (!sameZones(values)) setSame(false);
+    onChange({ ...card, values, notes: fresh, source: "document", example: false, confirmed: false });
+    const left = missingRates({ ...card, values }).length;
+    setMsg({ text: `Read ${n} rate${n === 1 ? "" : "s"} from ${from}.${differ ? ` ${differ} differ from what you were actually charged, marked below.` : ""} ${left ? `${left} still to fill.` : "Check them, then tick to confirm."}` });
+  };
+
+  const readFile = async (f: File) => {
+    setReading(true);
+    setMsg({ text: /\.(png|jpe?g|webp)$/i.test(f.name) ? "Reading your screenshot. This can take up to half a minute the first time." : `Reading ${f.name}…` });
+    try {
+      const { readRateDocument } = await import("../engine/rateDocs");
+      const doc = await readRateDocument(f);
+      applyDocument(doc.lines, `your ${doc.how}`);
+    } catch (e) {
+      setMsg({ text: e instanceof Error && e.message && !/fetch|network|undefined/i.test(e.message) ? e.message : "That file couldn't be read. Try a PDF, an Excel file, or paste the rates as text.", bad: true });
+    } finally {
+      setReading(false);
+    }
+  };
+
+  const fromFiles = () => {
+    if (!data) return;
+    const next = suggestCard(data, card);
+    const filled = Object.keys(next.values).filter((k) => !(k in card.values) || card.values[k] === "").filter((k) => next.values[k] !== undefined && next.values[k] !== "").length;
+    if (!sameZones(next.values)) setSame(false);
+    onChange(next);
+    setMsg(filled ? { text: `Filled ${filled} rate${filled === 1 ? "" : "s"} from what you were charged most often. Check them against your agreement.` } : { text: `Nothing new could be read from your ${p.name} files. Fill the rest from your agreement.`, bad: true });
+  };
   const complete = isCardComplete(card);
   const left = missingRates(card);
 
   const set = (k: string, v: string) => {
     setTouched(true);
     const values = { ...card.values, [k]: v };
-    if (same && k.endsWith("_first")) values[k.replace("_first", "_extra")] = v;
-    onChange({ ...card, values, example: false });
+    const n = { ...notes };
+    delete n[k];
+    if (same && k.endsWith("_first")) {
+      values[k.replace("_first", "_extra")] = v;
+      delete n[k.replace("_first", "_extra")];
+    }
+    onChange({ ...card, values, notes: n, example: false });
   };
   const toggleSame = (on: boolean) => {
     setSame(on);
@@ -69,7 +141,7 @@ export function RateCardEditor({ card, onChange, compact = false }: { card: Rate
         <label key={f.key} className="grid content-start gap-1 text-sm">
           <span className="font-medium text-slate-200">{f.label}</span>
           <Num id={`${uid}-${f.key}`} label={`${p.name}: ${f.label}`} value={card.values[f.key]} onChange={(v) => set(f.key, v)} unit={f.unit} blankWarn={touched || card.example} />
-          <span className="text-xs text-slate-400">{f.hint}</span>
+          {notes[f.key] ? <Note text={notes[f.key]} /> : <span className="text-xs text-slate-400">{f.hint}</span>}
         </label>
       ))}
     </div>
@@ -77,7 +149,23 @@ export function RateCardEditor({ card, onChange, compact = false }: { card: Rate
 
   return (
     <div className="grid gap-4">
-      {!compact && <p className="text-sm text-slate-400">Where to find it: {p.rateHelp}</p>}
+      <div className="grid gap-2 rounded-lg border border-emerald-900/60 bg-emerald-950/20 p-3">
+        <p className="text-sm font-medium text-slate-100">Fill it in for me</p>
+        <div className="flex flex-wrap gap-2">
+          {data && <Btn onClick={fromFiles} disabled={reading}>From what I was charged</Btn>}
+          <Btn onClick={() => fileRef.current?.click()} disabled={reading}>{reading ? "Reading…" : "From my rate card or agreement"}</Btn>
+          <Btn variant="ghost" onClick={() => setPaste(paste === null ? "" : null)} disabled={reading}>Paste the rates</Btn>
+          <input ref={fileRef} id={`${uid}-doc`} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.csv,.xlsx,.txt" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) readFile(f); e.target.value = ""; }} />
+        </div>
+        <p className="text-xs text-slate-400">A PDF addendum, a screenshot or photo, an Excel sheet, or text from an email. It's read on this device.{!compact && ` Where to find it: ${p.rateHelp}`}</p>
+        {paste !== null && (
+          <div className="grid gap-2">
+            <textarea id={`${uid}-paste`} value={paste} onChange={(e) => setPaste(e.target.value)} rows={5} placeholder={p.type === "gateway" ? "UPI - 1.2%\nDebit cards up to Rs 2000 - 0.4%\nCredit cards - 1.75%\n…" : "Zone A 34, additional 500 g 34\nCOD: 1.5% or Rs 30, whichever is higher\n…"} className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600" />
+            <div><Btn variant="primary" disabled={!paste.trim()} onClick={() => { applyDocument(toLines(paste), "the text you pasted"); setPaste(null); }}>Read these rates</Btn></div>
+          </div>
+        )}
+        {msg && <p role="status" className={`text-sm ${msg.bad ? "text-amber-300" : "text-emerald-200"}`}>{msg.text}</p>}
+      </div>
 
       {p.type === "gateway" ? (
         <>
@@ -118,7 +206,7 @@ export function RateCardEditor({ card, onChange, compact = false }: { card: Rate
                       <tr>
                         <td className="px-3 py-1.5">
                           <span className="text-slate-200">{i.label}</span>
-                          {i.hint && <span className="block text-xs text-slate-500">{i.hint}</span>}
+                          {notes[pctKey(i.key)] ? <Note text={notes[pctKey(i.key)]} /> : i.hint && <span className="block text-xs text-slate-500">{i.hint}</span>}
                         </td>
                         <td className="w-24 px-2 py-1.5 sm:w-32">
                           <Num id={`${uid}-pct-${i.key}`} label={`${p.name}: ${i.label} rate`} value={card.values[pctKey(i.key)]} onChange={(v) => set(pctKey(i.key), v)} unit="%" blankWarn={touched || card.example} />
@@ -160,6 +248,7 @@ export function RateCardEditor({ card, onChange, compact = false }: { card: Rate
                     <tr key={z}>
                       <td className="px-3 py-1.5">
                         <span className="font-semibold">{z}</span> <span className="text-slate-400">{ZONE_LABEL[z]}</span>
+                        <Note text={notes[zoneKey(z, "first")] ?? notes[zoneKey(z, "extra")]} />
                       </td>
                       <td className="w-28 px-2 py-1.5 sm:w-36">
                         <Num id={`${uid}-${z}-first`} label={`${p.name}: zone ${z} ${same ? "per 500 g" : "first 500 g"}`} value={card.values[zoneKey(z, "first")]} onChange={(v) => set(zoneKey(z, "first"), v)} unit="₹" blankWarn={touched || card.example} />
@@ -182,7 +271,7 @@ export function RateCardEditor({ card, onChange, compact = false }: { card: Rate
       <p className="text-xs text-slate-400">Enter rates the same way your {p.name} bill shows them, with or without GST.</p>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-slate-800 pt-4">
-        <Btn onClick={() => { setTouched(false); onChange(exampleCard(card.partner)); setSame(true); }}>Start from example rates</Btn>
+        <Btn variant="ghost" onClick={() => { setTouched(false); setMsg(null); onChange(exampleCard(card.partner)); setSame(true); }}>Use example rates</Btn>
         <label className={`flex items-center gap-2 text-sm ${complete ? "text-slate-100" : "text-slate-500"}`}>
           <input
             id={`${uid}-confirm`}

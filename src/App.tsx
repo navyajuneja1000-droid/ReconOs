@@ -3,6 +3,7 @@ import { generateSample } from "./sample/generate";
 import { intakeTable, isReady, partnersIn, runAuditFull, type Intake } from "./engine/intake";
 import { buildTrail } from "./engine/trail";
 import { emptyCard, isCardReady, ratesFromCards, type RateCard } from "./engine/partners";
+import { suggestCard } from "./engine/suggest";
 import { Navbar, type Tab, TABS } from "./components/Navbar";
 import { OverviewView } from "./components/OverviewView";
 import { DashboardView } from "./components/DashboardView";
@@ -45,6 +46,7 @@ export default function App() {
   const sample = useMemo(() => generateSample(), []);
   const [sampleCards, setSampleCards] = useState<Cards>(() => sample.cards);
   const [fileCards, setFileCards] = useState<Cards>({});
+  const [picked, setPicked] = useState<string[]>([]);
 
   useEffect(() => {
     const on = () => setTabState(tabFromHash());
@@ -77,6 +79,12 @@ export default function App() {
   const ctx: ViewCtx = { result, data, trail, source, brandName, setTab, partner: known ? partner : "all", setPartner, cards, setCard };
 
   const filePartners = partnersIn(items);
+  // the brand's files read so far (before any rates), used to fill rate cards from what was actually charged
+  const fileData = useMemo(() => runAuditFull(items.filter(isReady)).data, [items]);
+  const uploadCards = useMemo(
+    () => Object.fromEntries(filePartners.map((p) => [p, fileCards[p] ?? suggestCard(fileData, emptyCard(p))])),
+    [filePartners.join(","), fileCards, fileData], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
@@ -100,7 +108,10 @@ export default function App() {
             setItems={setItems}
             brand={brand}
             setBrand={setBrand}
-            cards={Object.fromEntries(filePartners.map((p) => [p, fileCards[p] ?? emptyCard(p)]))}
+            cards={uploadCards}
+            picked={picked}
+            setPicked={setPicked}
+            data={fileData}
             setCard={(c) => setFileCards((prev) => ({ ...prev, [c.partner]: c }))}
             onRun={() => { setSource("files"); setPartner("all"); setTab("dashboard"); }}
           />

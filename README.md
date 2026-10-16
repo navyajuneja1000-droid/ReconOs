@@ -34,6 +34,10 @@ The site opens on a made-up brand (Indigo Loom) that uses Razorpay and PayU, shi
 4. Gateway fees above the rate card, priced per payment method (UPI, debit card up to or above ₹2,000, RuPay debit, credit card by network, Amex, Diners, international, net banking, wallets, EMI, each with an optional fixed fee), wrong GST on fees, paid orders never settled, refund mismatches. When a file doesn't say enough (say, no credit/debit column), the payment is checked against the highest rate it could be on, so nothing is over-claimed. Gateways that send one file per method are supported; the method is read from the file name or chosen by hand
 5. Courier payouts and gateway settlements that never reached the bank
 
+Rates are compulsory, but founders rarely type them. ReconOS fills each rate card from what the brand was charged most often, or reads it from the rate card itself: a PDF addendum, a screenshot or photo (read with on-device OCR), an Excel sheet or text pasted from an email. Every value shows where it came from, and differences between the agreement and the actual charges are flagged. The founder confirms before the audit runs.
+
+The Partners page also compares couriers zone by zone, including each courier booked through Shiprocket: share of parcels that came back, COD payout speed, overcharges, and the real cost per 500 g delivered.
+
 Rate card gaps on aggregators (Shiprocket, NimbusPost, iThink) are marked Check, since their prices differ by courier.
 
 **Claim** means the founder's own files prove the money is owed. **Check** means something doesn't add up and needs a look first.

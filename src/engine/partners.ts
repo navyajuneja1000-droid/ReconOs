@@ -500,6 +500,10 @@ export interface RateCard {
   confirmed: boolean;
   /** true when filled from example rates and not yet edited */
   example: boolean;
+  /** where each value came from, shown under the field ("Charged on 48 of 52 UPI payments") */
+  notes?: Record<string, string>;
+  /** where the filled values came from as a whole */
+  source?: "files" | "document" | "example" | "typed";
 }
 
 export interface RateField {

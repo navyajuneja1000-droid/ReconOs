@@ -8,10 +8,10 @@ export const TABS: { id: Tab; label: string }[] = [
   { id: "dashboard", label: "Dashboard" },
   { id: "partners", label: "Partners" },
   { id: "upload", label: "Upload files" },
-  { id: "orders", label: "Order trail" },
-  { id: "leaks", label: "Leaks & claims" },
-  { id: "fees", label: "Fee check" },
-  { id: "report", label: "Recovery report" },
+  { id: "orders", label: "Every order" },
+  { id: "leaks", label: "Claims" },
+  { id: "fees", label: "Gateway fees" },
+  { id: "report", label: "Report" },
   { id: "pricing", label: "Pricing" },
 ];
 

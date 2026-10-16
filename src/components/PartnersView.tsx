@@ -8,19 +8,20 @@ import type { PartnerSummary } from "../engine/types";
 import { Btn, inr, Panel, PanelHead, useCopy } from "../ui";
 import { FindingItem } from "./LeaksView";
 import { CardStatus, RateCardEditor } from "./RateCardEditor";
+import { CourierCompare } from "./CourierCompare";
 
 const KIND_SHORT: Record<string, string> = {
   courier_shipments: "Shipments & charges",
-  courier_cod: "COD remittance",
-  courier_weight: "Weight discrepancies",
-  gateway_settlements: "Settlement report",
+  courier_cod: "COD payouts",
+  courier_weight: "Extra weight charges",
+  gateway_settlements: "Payouts (settlement report)",
 };
 
 export function TypeTag({ p }: { p: Pick<PartnerSummary, "id" | "type"> }) {
   const agg = PARTNER_BY_ID[p.id]?.aggregator;
   return (
     <span className={`rounded-md border px-1.5 py-0.5 text-xs font-medium ${p.type === "gateway" ? "border-sky-500/30 bg-sky-500/10 text-sky-300" : "border-violet-500/30 bg-violet-500/10 text-violet-300"}`}>
-      {p.type === "gateway" ? "Gateway" : agg ? "Aggregator" : "Courier"}
+      {p.type === "gateway" ? "Gateway" : agg ? "Shipping platform" : "Courier"}
     </span>
   );
 }
@@ -86,7 +87,7 @@ function Detail({ p, ctx }: { p: PartnerSummary; ctx: ViewCtx }) {
             <PanelHead
               title={`Every ${p.name} item`}
               sub={findings.length ? `${findings.length} found` : undefined}
-              right={findings.length ? <Btn onClick={() => setTab("leaks")}>Open in Leaks & claims</Btn> : undefined}
+              right={findings.length ? <Btn onClick={() => setTab("leaks")}>Open in Claims</Btn> : undefined}
             />
             <ul className="divide-y divide-slate-800">
               {findings.map((f) => <FindingItem key={f.id} f={f} />)}
@@ -113,7 +114,7 @@ function Detail({ p, ctx }: { p: PartnerSummary; ctx: ViewCtx }) {
 
           <Panel>
             <PanelHead title="Rate card" sub="Change a rate and every check updates" right={<CardStatus card={card} />} />
-            <div className="px-5 py-4"><RateCardEditor key={p.id} card={card} onChange={setCard} compact /></div>
+            <div className="px-5 py-4"><RateCardEditor key={p.id} card={card} onChange={setCard} compact data={ctx.data} /></div>
           </Panel>
 
           {draft && (
@@ -148,7 +149,7 @@ export function PartnersView(ctx: ViewCtx) {
   }
   const groups = [
     { title: "Payment gateways", list: result.partners.filter((p) => p.type === "gateway") },
-    { title: "Couriers", list: result.partners.filter((p) => p.type === "courier") },
+    { title: "Couriers and shipping platforms", list: result.partners.filter((p) => p.type === "courier") },
   ].filter((g) => g.list.length);
 
   return (
@@ -218,6 +219,8 @@ export function PartnersView(ctx: ViewCtx) {
           </div>
         </section>
       ))}
+
+      <div id="compare-couriers"><CourierCompare data={ctx.data} result={result} /></div>
     </div>
   );
 }

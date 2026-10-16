@@ -44,7 +44,7 @@ export function FeeCheckView({ data, result, setTab, cards, setCard }: ViewCtx) 
     return (
       <Panel className="p-8 text-center">
         <h1 className="text-2xl font-semibold">Add a payment gateway report</h1>
-        <p className="mx-auto mt-2 max-w-[56ch] text-slate-300">Fee check re-prices every payment from Razorpay, PayU, Cashfree, PhonePe, Paytm or CCAvenue against your rate card and flags fees or GST charged above it.</p>
+        <p className="mx-auto mt-2 max-w-[56ch] text-slate-300">This page re-prices every payment from Razorpay, PayU, Cashfree, PhonePe, Paytm or CCAvenue against your rate card and flags fees or GST charged above it.</p>
         <Btn variant="primary" className="mt-5" onClick={() => setTab("upload")}>Upload files</Btn>
       </Panel>
     );
@@ -58,7 +58,7 @@ export function FeeCheckView({ data, result, setTab, cards, setCard }: ViewCtx) 
   return (
     <div className="grid gap-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Fee check</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Gateway fees</h1>
         <p className="mt-1 max-w-[70ch] text-slate-300">Every gateway payment re-priced against that gateway's rate card. Change a rate and the numbers update across the whole dashboard.</p>
       </div>
 
@@ -75,7 +75,7 @@ export function FeeCheckView({ data, result, setTab, cards, setCard }: ViewCtx) 
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <Panel>
           <PanelHead title={`${name} rate card`} sub={isCardReady(card) ? "Used for every check below" : `Not confirmed, so a standard ${FALLBACK_GATEWAY.pct.creditVisa}% is used until you confirm it`} right={<CardStatus card={card} />} />
-          <div className="px-5 py-4"><RateCardEditor key={gw} card={card} onChange={setCard} compact /></div>
+          <div className="px-5 py-4"><RateCardEditor key={gw} card={card} onChange={setCard} compact data={data} /></div>
         </Panel>
         <Panel className="grid content-start gap-4 p-5">
           <div>
