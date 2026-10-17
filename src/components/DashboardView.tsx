@@ -62,9 +62,9 @@ export function DashboardView({ result, trail, setTab, source, brandName, setPar
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
-        <Panel>
+        <Panel className="flex flex-col">
           <PanelHead title="Where the money is leaking" sub="Claim and check amounts by type" right={<button type="button" onClick={() => setTab("leaks")} className="text-sm text-emerald-300 hover:underline">See every item</button>} />
-          <div className="h-72 px-2 py-4">
+          <div className="min-h-72 flex-1 px-2 py-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chart} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
                 <CartesianGrid horizontal={false} stroke="#1e293b" />

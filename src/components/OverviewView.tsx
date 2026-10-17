@@ -127,6 +127,13 @@ export function OverviewView({ result, setTab, source }: ViewCtx) {
             </li>
           ))}
         </ol>
+        <div id="weekly-callout" className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-5">
+          <div className="max-w-[72ch]">
+            <h3 className="font-semibold">Between audits: a two-minute weight check, twice a week</h3>
+            <p className="mt-1 text-sm text-slate-300">Couriers give you only a few working days to dispute a wrong weight charge, so a monthly audit finds most of them too late. Upload just your courier's weight report every Monday and Thursday and ReconOS lists what you can still dispute, closest deadline first.</p>
+          </div>
+          <Btn onClick={() => setTab("weights")}>See the weekly weight check</Btn>
+        </div>
       </section>
 
       <section aria-labelledby="partners">
@@ -195,6 +202,7 @@ export function OverviewView({ result, setTab, source }: ViewCtx) {
             <div key={b.id} className="border-l-2 border-emerald-500/50 pl-4">
               <h3 className="font-semibold">{b.title}</h3>
               <p className="mt-1 text-sm text-slate-300">{b.blurb}</p>
+              {b.id === "weight_dispute" && <button type="button" onClick={() => setTab("weights")} className="mt-1 text-sm text-emerald-300 underline-offset-4 hover:underline">Check these twice a week</button>}
             </div>
           ))}
         </div>

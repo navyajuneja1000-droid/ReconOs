@@ -1,7 +1,10 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { inr } from "../ui";
 
 export type Tab = "overview" | "dashboard" | "partners" | "upload" | "orders" | "leaks" | "fees" | "report" | "weights" | "pricing";
+
+/** "site" pages describe the product; the rest are the tool itself */
+export const SITE_TABS: Tab[] = ["overview", "pricing"];
 
 export const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "How it works" },
@@ -38,6 +41,16 @@ export function Navbar({
   checkTotal: number;
   onBackToSample: () => void;
 }) {
+  const onSite = SITE_TABS.includes(tab);
+  const nav = useRef<HTMLElement>(null);
+  // keep the open tab in view on phones, where the row scrolls sideways
+  useEffect(() => {
+    const el = nav.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    const box = nav.current;
+    if (!el || !box || box.scrollWidth <= box.clientWidth) return;
+    const left = el.offsetLeft - (box.clientWidth - el.offsetWidth) / 2;
+    box.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+  }, [tab]);
   return (
     <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 backdrop-blur" style={{ top: "env(safe-area-inset-top, 0px)" }}>
       <div className={`border-b text-sm ${source === "sample" ? "border-emerald-900/60 bg-emerald-950/40 text-emerald-200" : "border-sky-900/60 bg-sky-950/40 text-sky-200"}`}>
@@ -64,24 +77,36 @@ export function Navbar({
           </span>
         </button>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => setTab("leaks")} className="hidden rounded-lg border border-slate-800 px-3 py-1.5 text-right sm:block hover:border-slate-600">
+          {(["overview", "pricing"] as Tab[]).map((id) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              aria-current={tab === id ? "page" : undefined}
+              className={`hidden rounded-lg px-3 py-2 text-sm md:block ${tab === id ? "text-emerald-300" : "text-slate-300 hover:text-white"}`}
+            >
+              {id === "overview" ? "How it works" : "Pricing"}
+            </button>
+          ))}
+          {!onSite && <button type="button" onClick={() => setTab("leaks")} className="hidden rounded-lg border border-slate-800 px-3 py-1.5 text-right sm:block hover:border-slate-600">
             <span className="block text-xs text-slate-400">You can claim</span>
             <span className="block font-semibold text-emerald-400 tabular-nums">{inr(claimTotal)}</span>
-          </button>
-          <button type="button" onClick={() => setTab("leaks")} className="hidden rounded-lg border border-slate-800 px-3 py-1.5 text-right md:block hover:border-slate-600">
+          </button>}
+          {!onSite && <button type="button" onClick={() => setTab("leaks")} className="hidden rounded-lg border border-slate-800 px-3 py-1.5 text-right md:block hover:border-slate-600">
             <span className="block text-xs text-slate-400">Worth a check</span>
             <span className="block font-semibold text-amber-300 tabular-nums">{inr(checkTotal)}</span>
-          </button>
+          </button>}
           <button type="button" onClick={() => setTab("upload")} className="rounded-lg bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
             Upload files
           </button>
         </div>
       </div>
 
-      <nav aria-label="Sections" className="gutter mx-auto max-w-7xl overflow-x-auto">
+      <div className="relative mx-auto max-w-7xl">
+      <nav ref={nav} aria-label="Sections" className="gutter overflow-x-auto">
         <ul className="flex gap-1 text-sm">
           {TABS.map((t) => (
-            <li key={t.id}>
+            <li key={t.id} className={SITE_TABS.includes(t.id) ? "md:hidden" : ""}>
               <button
                 type="button"
                 onClick={() => setTab(t.id)}
@@ -94,6 +119,9 @@ export function Navbar({
           ))}
         </ul>
       </nav>
+      {/* hints on small screens that the tab row scrolls */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-slate-950 to-transparent lg:hidden" />
+      </div>
     </header>
   );
 }
