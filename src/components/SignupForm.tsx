@@ -1,14 +1,15 @@
 import React, { useState } from "react";
 import { Btn } from "../ui";
 
-// Set VITE_WAITLIST_ENDPOINT (for example a Formspree form URL) in Vercel to collect sign-ups.
-const ENDPOINT = (import.meta as unknown as { env: Record<string, string | undefined> }).env.VITE_WAITLIST_ENDPOINT;
+// Sign-ups go to Formspree. VITE_WAITLIST_ENDPOINT can override it (for example a test form).
+const ENDPOINT = (import.meta as unknown as { env: Record<string, string | undefined> }).env.VITE_WAITLIST_ENDPOINT || "https://formspree.io/f/xnpjwqjn";
 
 export function SignupForm({ id = "signup" }: { id?: string }) {
   const [email, setEmail] = useState("");
   const [store, setStore] = useState("");
   const [orders, setOrders] = useState("");
   const [agree, setAgree] = useState(false);
+  const [trap, setTrap] = useState(""); // hidden from people; bots fill it in
   const [state, setState] = useState<"idle" | "sending" | "done" | "error" | "closed">("idle");
   const [msg, setMsg] = useState("");
 
@@ -29,12 +30,18 @@ export function SignupForm({ id = "signup" }: { id?: string }) {
       setMsg("Early-access sign-ups open very soon. Nothing was saved, so please check back.");
       return;
     }
+    if (trap) {
+      // a bot filled the hidden field, so pretend it worked and save nothing
+      setState("done");
+      setMsg("You're on the list. We'll email you when your monthly audits are ready.");
+      return;
+    }
     setState("sending");
     try {
       const res = await fetch(ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ email: email.trim(), store: store.trim(), monthlyOrders: orders, source: "reconos-site", consent: "Agreed to Privacy Policy (version 17 October 2026) and to receive emails about ReconOS early access", consentAt: new Date().toISOString() }),
+        body: JSON.stringify({ _subject: "New ReconOS early access sign-up", _replyto: email.trim(), email: email.trim(), store: store.trim(), monthlyOrders: orders, source: "reconos-site", consent: "Agreed to Privacy Policy (version 17 October 2026) and to receive emails about ReconOS early access", consentAt: new Date().toISOString() }),
       });
       if (!res.ok) throw new Error(String(res.status));
       setState("done");
@@ -69,6 +76,9 @@ export function SignupForm({ id = "signup" }: { id?: string }) {
         </select>
       </label>
       <Btn type="submit" variant="primary" className="py-2.5" disabled={state === "sending"}>{state === "sending" ? "Sending" : "Get early access"}</Btn>
+      <div aria-hidden="true" style={{ position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" }}>
+        <label>Leave this empty<input name="_gotcha" tabIndex={-1} autoComplete="off" value={trap} onChange={(e) => setTrap(e.target.value)} /></label>
+      </div>
       <label className="flex items-start gap-2 text-sm text-slate-300 sm:col-span-4">
         <input id={`${id}-agree`} type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-emerald-500" />
         <span>I agree to the <a href="/privacy" target="_blank" rel="noreferrer" className="text-emerald-300 underline-offset-4 hover:underline">Privacy Policy</a> and to receive emails about ReconOS early access. I can unsubscribe at any time.</span>
