@@ -10,6 +10,7 @@
 
 export const LEGAL = {
   name: "ReconOS",
+  site: "reconos.in",
   email: "navyajuneja1000@gmail.com",
   officer: "Navya Juneja",
   phone: "+91 85568 17288",
@@ -44,7 +45,7 @@ export const PRIVACY: LegalDoc = {
     {
       h: "1. Who we are",
       blocks: [
-        { p: `${LEGAL.name} ("ReconOS", "we", "us", "our") is an online tool that helps Indian direct-to-consumer brands find money their couriers and payment gateways owe them. ReconOS is run by ${LEGAL.officer} and is based in ${LEGAL.place}. For the personal data described in this policy, ReconOS is the Data Fiduciary under the Digital Personal Data Protection Act, 2023 ("DPDP Act").` },
+        { p: `${LEGAL.name} ("ReconOS", "we", "us", "our") is an online tool, available at ${LEGAL.site}, that helps Indian direct-to-consumer brands find money their couriers and payment gateways owe them. ReconOS is run by ${LEGAL.officer} and is based in ${LEGAL.place}. For the personal data described in this policy, ReconOS is the Data Fiduciary under the Digital Personal Data Protection Act, 2023 ("DPDP Act").` },
         { p: `Contact for anything about your personal data: ${E}.` },
       ],
     },
@@ -382,6 +383,7 @@ export const CONTACT: LegalDoc = {
       h: "Get in touch",
       blocks: [
         { ul: [
+          `Website: ${LEGAL.site}`,
           `Email: ${E}`,
           `Phone: ${LEGAL.phone}`,
           `Based in: ${LEGAL.place}`,
