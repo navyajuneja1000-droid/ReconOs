@@ -77,17 +77,6 @@ export function Navbar({
           </span>
         </button>
         <div className="flex items-center gap-2">
-          {(["overview", "pricing"] as Tab[]).map((id) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id)}
-              aria-current={tab === id ? "page" : undefined}
-              className={`hidden rounded-lg px-3 py-2 text-sm md:block ${tab === id ? "text-emerald-300" : "text-slate-300 hover:text-white"}`}
-            >
-              {id === "overview" ? "How it works" : "Pricing"}
-            </button>
-          ))}
           {!onSite && <button type="button" onClick={() => setTab("leaks")} className="hidden rounded-lg border border-slate-800 px-3 py-1.5 text-right sm:block hover:border-slate-600">
             <span className="block text-xs text-slate-400">You can claim</span>
             <span className="block font-semibold text-emerald-400 tabular-nums">{inr(claimTotal)}</span>
@@ -106,7 +95,7 @@ export function Navbar({
       <nav ref={nav} aria-label="Sections" className="gutter overflow-x-auto">
         <ul className="flex gap-1 text-sm">
           {TABS.map((t) => (
-            <li key={t.id} className={SITE_TABS.includes(t.id) ? "md:hidden" : ""}>
+            <li key={t.id} className={t.id === "dashboard" || t.id === "pricing" ? "flex items-center before:mx-1 before:h-4 before:w-px before:bg-slate-800 before:content-['']" : ""}>
               <button
                 type="button"
                 onClick={() => setTab(t.id)}
