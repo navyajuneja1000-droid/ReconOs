@@ -11,6 +11,8 @@
 export const LEGAL = {
   name: "ReconOS",
   email: "navyajuneja1000@gmail.com",
+  officer: "Navya Juneja",
+  phone: "+91 85568 17288",
   place: "Gurugram, Haryana, India",
   courts: "Gurugram, Haryana",
   updated: "17 October 2026",
@@ -21,6 +23,7 @@ export interface Section { h: string; blocks: Block[] }
 export interface LegalDoc { path: string; title: string; intro: string; sections: Section[] }
 
 const E = LEGAL.email;
+const GO = `${LEGAL.officer}, Founder, ReconOS (email ${LEGAL.email}, phone ${LEGAL.phone}, ${LEGAL.place})`;
 
 export const PRIVACY: LegalDoc = {
   path: "/privacy",
@@ -41,7 +44,7 @@ export const PRIVACY: LegalDoc = {
     {
       h: "1. Who we are",
       blocks: [
-        { p: `${LEGAL.name} ("ReconOS", "we", "us", "our") is an online tool that helps Indian direct-to-consumer brands find money their couriers and payment gateways owe them. We are based in ${LEGAL.place}. For the personal data described in this policy, ReconOS is the Data Fiduciary under the Digital Personal Data Protection Act, 2023 ("DPDP Act").` },
+        { p: `${LEGAL.name} ("ReconOS", "we", "us", "our") is an online tool that helps Indian direct-to-consumer brands find money their couriers and payment gateways owe them. ReconOS is run by ${LEGAL.officer} and is based in ${LEGAL.place}. For the personal data described in this policy, ReconOS is the Data Fiduciary under the Digital Personal Data Protection Act, 2023 ("DPDP Act").` },
         { p: `Contact for anything about your personal data: ${E}.` },
       ],
     },
@@ -133,7 +136,7 @@ export const PRIVACY: LegalDoc = {
     {
       h: "10. Grievances",
       blocks: [
-        { p: `If you have a concern about how we handle your personal data, write to our Grievance Officer: Founder, ReconOS, ${E}, ${LEGAL.place}. We will acknowledge your complaint within 2 working days and aim to resolve it within 30 days.` },
+        { p: `If you have a concern about how we handle your personal data, contact our Grievance Officer: ${GO}. We will acknowledge your complaint within 2 working days and aim to resolve it within 30 days.` },
         { p: "If you are not satisfied with our response, you may complain to the Data Protection Board of India as provided under the DPDP Act." },
       ],
     },
@@ -173,7 +176,7 @@ export const PRIVACY: LegalDoc = {
 export const TERMS: LegalDoc = {
   path: "/terms",
   title: "Terms of Use",
-  intro: `These terms are an agreement between you and ${LEGAL.name} about your use of the ReconOS website and tool. By using ReconOS you agree to them. If you do not agree, please do not use ReconOS.`,
+  intro: `These terms are an agreement between you and ${LEGAL.name}, run by ${LEGAL.officer}, about your use of the ReconOS website and tool. By using ReconOS you agree to them. If you do not agree, please do not use ReconOS.`,
   sections: [
     {
       h: "1. Who can use ReconOS",
@@ -301,7 +304,7 @@ export const TERMS: LegalDoc = {
     {
       h: "18. Contact and grievances",
       blocks: [
-        { p: `Questions or complaints about these terms or the service: Grievance Officer, Founder, ReconOS, ${E}, ${LEGAL.place}. We acknowledge complaints within 2 working days and aim to resolve them within 30 days.` },
+        { p: `Questions or complaints about these terms or the service: Grievance Officer, ${GO}. We acknowledge complaints within 2 working days and aim to resolve them within 30 days.` },
       ],
     },
   ],
@@ -379,6 +382,7 @@ export const CONTACT: LegalDoc = {
       blocks: [
         { ul: [
           `Email: ${E}`,
+          `Phone: ${LEGAL.phone}`,
           `Based in: ${LEGAL.place}`,
           "Hours: Monday to Saturday, 10 am to 6 pm IST. We usually reply within 1 working day.",
         ] },
@@ -387,7 +391,7 @@ export const CONTACT: LegalDoc = {
     {
       h: "Privacy and grievances",
       blocks: [
-        { p: `Grievance Officer: Founder, ReconOS, ${E}. Write to this address for privacy requests (to see, correct or delete your data) or complaints. We acknowledge within 2 working days and aim to resolve within 30 days.` },
+        { p: `Grievance Officer: ${GO}. Contact them for privacy requests (to see, correct or delete your data) or complaints. We acknowledge within 2 working days and aim to resolve within 30 days.` },
       ],
     },
     {
