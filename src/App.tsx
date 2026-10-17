@@ -15,6 +15,8 @@ import { FeeCheckView } from "./components/FeeCheckView";
 import { ReportView } from "./components/ReportView";
 import { PricingView } from "./components/PricingView";
 import { SiteFooter } from "./components/SiteFooter";
+import { WeightCheckView } from "./components/WeightCheckView";
+import { clearSaved, loadSaved, storeSaved } from "./engine/saved";
 
 export type Cards = Record<string, RateCard>;
 
@@ -40,14 +42,21 @@ const tabFromHash = (): Tab => {
 
 export default function App() {
   const [tab, setTabState] = useState<Tab>(tabFromHash);
+  // rates, brand name and partner list from an earlier visit, kept in this browser only
+  const [saved] = useState(loadSaved);
   const [source, setSource] = useState<"sample" | "files">("sample");
   const [items, setItems] = useState<TrayItem[]>([]);
-  const [brand, setBrand] = useState("");
+  const [brand, setBrand] = useState(saved?.brand ?? "");
   const [partner, setPartner] = useState("all");
   const sample = useMemo(() => generateSample(), []);
   const [sampleCards, setSampleCards] = useState<Cards>(() => sample.cards);
-  const [fileCards, setFileCards] = useState<Cards>({});
-  const [picked, setPicked] = useState<string[]>([]);
+  const [fileCards, setFileCards] = useState<Cards>(saved?.cards ?? {});
+  const [picked, setPicked] = useState<string[]>(saved?.picked ?? []);
+  const hadSaved = !!saved && Object.keys(saved.cards).length > 0;
+
+  useEffect(() => storeSaved({ cards: fileCards, brand, picked }), [fileCards, brand, picked]);
+  const forgetSaved = () => { clearSaved(); setFileCards({}); setBrand(""); setPicked([]); };
+  const setFileCard = (c: RateCard) => setFileCards((prev) => ({ ...prev, [c.partner]: c }));
 
   useEffect(() => {
     const on = () => setTabState(tabFromHash());
@@ -83,7 +92,12 @@ export default function App() {
   // the brand's files read so far (before any rates), used to fill rate cards from what was actually charged
   const fileData = useMemo(() => runAuditFull(items.filter(isReady)).data, [items]);
   const uploadCards = useMemo(
-    () => Object.fromEntries(filePartners.map((p) => [p, fileCards[p] ?? suggestCard(fileData, emptyCard(p))])),
+    () => Object.fromEntries(filePartners.map((p) => {
+      const c = fileCards[p];
+      // a card holding only the dispute days set on the weight check still gets its rates filled from the files
+      const daysOnly = c && !c.confirmed && Object.keys(c.values).every((k) => k === "weightDisputeDays");
+      return [p, c && !daysOnly ? c : suggestCard(fileData, c ?? emptyCard(p))];
+    })),
     [filePartners.join(","), fileCards, fileData], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
@@ -113,7 +127,10 @@ export default function App() {
             picked={picked}
             setPicked={setPicked}
             data={fileData}
-            setCard={(c) => setFileCards((prev) => ({ ...prev, [c.partner]: c }))}
+            setCard={setFileCard}
+            savedCount={Object.keys(fileCards).length}
+            hadSaved={hadSaved}
+            onForget={forgetSaved}
             onRun={() => { setSource("files"); setPartner("all"); setTab("dashboard"); }}
           />
         )}
@@ -122,6 +139,7 @@ export default function App() {
         {tab === "fees" && <FeeCheckView {...ctx} />}
         {tab === "report" && <ReportView {...ctx} />}
         {tab === "pricing" && <PricingView {...ctx} />}
+        {tab === "weights" && <WeightCheckView cards={fileCards} setCard={setFileCard} sample={sampleIntakes} sampleAsOf={sample.asOf} setTab={setTab} />}
       </main>
 
       <SiteFooter />

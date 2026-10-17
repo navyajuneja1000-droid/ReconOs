@@ -49,8 +49,13 @@ function Step({ n, title, sub, children }: { n: number; title: string; sub?: str
 }
 
 export function UploadView({
-  items, setItems, brand, setBrand, cards, setCard, onRun, picked, setPicked, data,
+  items, setItems, brand, setBrand, cards, setCard, onRun, picked, setPicked, data, savedCount = 0, hadSaved = false, onForget,
 }: {
+  /** rate cards kept in this browser (including partners not in this month's files) */
+  savedCount?: number;
+  /** true when rates were brought back from an earlier visit */
+  hadSaved?: boolean;
+  onForget?: () => void;
   /** partners the brand said it works with */
   picked: string[];
   setPicked: (p: string[]) => void;
@@ -291,6 +296,15 @@ export function UploadView({
       </Step>
 
       <Step n={3} title="Check each partner's rates (required)" sub="ReconOS checks every fee and shipping charge against the rates you agreed. We've filled in what you were charged most often. Check each number against your agreement, or fill it from your rate card document, then tick to confirm.">
+        {savedCount > 0 && (
+          <div id="saved-rates" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-sm">
+            <p className="max-w-[70ch] text-slate-300">
+              {hadSaved ? "Your rates from last time are filled in. Check nothing has changed in your agreements. " : ""}
+              Rates you enter are saved in this browser only, so next month you won't have to type them again. They are never sent to us.
+            </p>
+            {onForget && <Btn variant="ghost" className="text-slate-400" onClick={() => { if (window.confirm("Forget the rates, brand name and partners saved in this browser?")) onForget(); }}>Forget saved rates</Btn>}
+          </div>
+        )}
         {!partnerIds.length ? (
           <Panel className="p-5 text-sm text-slate-400">A rate card for each courier and gateway appears here as soon as you add its file.</Panel>
         ) : (
@@ -333,7 +347,7 @@ export function UploadView({
             )}
             <div className="flex flex-wrap items-center gap-3">
               <Btn variant="primary" className="px-5 py-3 text-base" onClick={onRun} disabled={blockers.length > 0}>Run my audit</Btn>
-              <p className="text-sm text-slate-400">Closing this tab clears everything.</p>
+              <p className="text-sm text-slate-400">Closing this tab clears your files. Your rates stay saved in this browser.</p>
             </div>
           </div>
         </Panel>

@@ -38,7 +38,7 @@ const STEPS = [
 ];
 
 const FAQ = [
-  { q: "Do my files get uploaded?", a: "No. ReconOS runs in your browser tab. Your files are read on your computer and disappear when you close the tab." },
+  { q: "Do my files get uploaded?", a: "No. ReconOS runs in your browser tab. Your files are read on your computer and disappear when you close the tab. Only the rates you enter are remembered, in your own browser, so next month is quicker." },
   { q: "Which couriers and gateways work today?", a: `Gateways: ${list(GATEWAY_NAMES)}. Couriers and shipping aggregators: ${list(COURIER_NAMES)}. Plus Shopify and any bank statement saved as CSV or Excel. Reading partner reports is in beta while we test with real exports, so if a column isn't recognised you can tell ReconOS which one it is.` },
   { q: "I use more than one courier and gateway. Does that work?", a: "Yes, that's what it's built for. Add every partner's files together. The dashboard shows the combined total, the Partners page splits every finding by courier and gateway, and each partner gets its own claim email." },
   { q: "Why do I have to add my rates?", a: "Couriers and gateways charge what you negotiated, not a public price. ReconOS can only say a charge is too high if it knows what you agreed, so each partner needs its rate card before the audit runs. Gateways get a rate for each payment method (UPI, debit cards above and below ₹2,000, RuPay, each credit card network, Amex, net banking and more); couriers get a rate for each zone. To save typing, ReconOS fills them in from what you were charged most often, or reads them from your rate card or agreement (a PDF, a screenshot, an Excel sheet or text from an email). You check every number before the audit runs." },

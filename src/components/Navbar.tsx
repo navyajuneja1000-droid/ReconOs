@@ -1,7 +1,7 @@
 import React from "react";
 import { inr } from "../ui";
 
-export type Tab = "overview" | "dashboard" | "partners" | "upload" | "orders" | "leaks" | "fees" | "report" | "pricing";
+export type Tab = "overview" | "dashboard" | "partners" | "upload" | "orders" | "leaks" | "fees" | "report" | "weights" | "pricing";
 
 export const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "How it works" },
@@ -12,6 +12,7 @@ export const TABS: { id: Tab; label: string }[] = [
   { id: "leaks", label: "Claims" },
   { id: "fees", label: "Gateway fees" },
   { id: "report", label: "Report" },
+  { id: "weights", label: "Weekly weight check" },
   { id: "pricing", label: "Pricing" },
 ];
 

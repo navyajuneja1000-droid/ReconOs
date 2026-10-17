@@ -52,6 +52,7 @@ export const PRIVACY: LegalDoc = {
       h: "2. Files you check with ReconOS",
       blocks: [
         { p: "When you add reports or rate cards to ReconOS, your browser reads and checks them on your own device. The files, and anything in them (including your customers' names, addresses or phone numbers, payment details and bank statement entries), are not sent to our servers or to anyone else. Closing the browser tab clears them." },
+        { p: "To save you retyping them each month, the rates you enter, your brand name and the list of partners you picked are kept in your browser's local storage, on your own device. They are never sent to us. You can delete them at any time with \"Forget saved rates\" on the Upload page, or by clearing this website's data in your browser settings." },
         { p: "If you upload a screenshot or photo of a rate card, the text is read on your device using a text recognition program that your browser downloads from our website. The image itself is not sent anywhere." },
         { p: "Because we never receive these files, we do not store, process or share the data in them. You remain responsible for having the right to use the data in your own files, under your agreements with your customers and partners and under the law." },
       ],
@@ -155,7 +156,7 @@ export const PRIVACY: LegalDoc = {
     {
       h: "13. Cookies and tracking",
       blocks: [
-        { p: "The website does not use cookies, analytics tools, advertising trackers or tracking pixels. The tool only uses your browser's memory while the tab is open, to check your files. If this ever changes, we will update this policy and ask for your consent where the law requires." },
+        { p: "The website does not use cookies, analytics tools, advertising trackers or tracking pixels. The tool uses your browser's memory while the tab is open, to check your files. It also uses your browser's local storage to remember the rates, brand name and partner list you entered, only so you don't have to retype them. This stays on your device, is never sent to us and is not used to track you. If this ever changes, we will update this policy and ask for your consent where the law requires." },
       ],
     },
     {

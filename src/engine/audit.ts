@@ -477,7 +477,7 @@ export function audit(ds: Dataset, settingsIn: Partial<Settings> = {}): AuditRes
         daysLeft: daysLeft ?? undefined,
       });
     }
-    if (lost > 0) insights.push({ title: "Weight charges already lost", detail: `${lostCount} weight charge${lostCount === 1 ? " was" : "s were"} accepted or the dispute window closed. Check them sooner next month.`, amount: r2(lost) });
+    if (lost > 0) insights.push({ title: "Weight charges already lost", detail: `${lostCount} weight charge${lostCount === 1 ? " was" : "s were"} accepted or the dispute window closed. The weekly weight check catches these while you can still dispute them.`, amount: r2(lost) });
     if (underDispute > 0) insights.push({ title: "Weight disputes in progress", detail: "Already disputed with the courier. Follow up if they stay open.", amount: r2(underDispute) });
   }
 
