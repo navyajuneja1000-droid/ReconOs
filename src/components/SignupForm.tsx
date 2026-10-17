@@ -8,6 +8,7 @@ export function SignupForm({ id = "signup" }: { id?: string }) {
   const [email, setEmail] = useState("");
   const [store, setStore] = useState("");
   const [orders, setOrders] = useState("");
+  const [agree, setAgree] = useState(false);
   const [state, setState] = useState<"idle" | "sending" | "done" | "error" | "closed">("idle");
   const [msg, setMsg] = useState("");
 
@@ -16,6 +17,11 @@ export function SignupForm({ id = "signup" }: { id?: string }) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setState("error");
       setMsg("Enter a valid email address, like you@yourbrand.in.");
+      return;
+    }
+    if (!agree) {
+      setState("error");
+      setMsg("Please tick the box to agree to the Privacy Policy, so we can email you.");
       return;
     }
     if (!ENDPOINT) {
@@ -28,7 +34,7 @@ export function SignupForm({ id = "signup" }: { id?: string }) {
       const res = await fetch(ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ email: email.trim(), store: store.trim(), monthlyOrders: orders, source: "reconos-site" }),
+        body: JSON.stringify({ email: email.trim(), store: store.trim(), monthlyOrders: orders, source: "reconos-site", consent: "Agreed to Privacy Policy (version 17 October 2026) and to receive emails about ReconOS early access", consentAt: new Date().toISOString() }),
       });
       if (!res.ok) throw new Error(String(res.status));
       setState("done");
@@ -63,6 +69,10 @@ export function SignupForm({ id = "signup" }: { id?: string }) {
         </select>
       </label>
       <Btn type="submit" variant="primary" className="py-2.5" disabled={state === "sending"}>{state === "sending" ? "Sending" : "Get early access"}</Btn>
+      <label className="flex items-start gap-2 text-sm text-slate-300 sm:col-span-4">
+        <input id={`${id}-agree`} type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-emerald-500" />
+        <span>I agree to the <a href="/privacy" target="_blank" rel="noreferrer" className="text-emerald-300 underline-offset-4 hover:underline">Privacy Policy</a> and to receive emails about ReconOS early access. I can unsubscribe at any time.</span>
+      </label>
       {msg && <p className={`text-sm sm:col-span-4 ${state === "error" ? "text-rose-300" : "text-slate-300"}`}>{msg}</p>}
     </form>
   );

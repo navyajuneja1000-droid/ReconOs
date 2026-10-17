@@ -16,6 +16,7 @@ export function PricingView({ result, source }: ViewCtx) {
       <div>
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Pricing</h1>
         <p className="mt-1 max-w-[70ch] text-slate-300">Start with a free audit. Pay only if you want ReconOS to check every month. Early-access prices, no annual lock-in.</p>
+        <p className="mt-2 max-w-[70ch] text-sm text-slate-400">Prices are in Indian rupees, per month, billed in advance. Any applicable taxes are added at checkout. Paid plans aren't open for payment yet. Cancel any time; see the <a href="/refunds" className="text-emerald-300 hover:underline">Refund and Cancellation Policy</a> and <a href="/terms" className="text-emerald-300 hover:underline">Terms</a>.</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

@@ -14,6 +14,7 @@ import { LeaksView } from "./components/LeaksView";
 import { FeeCheckView } from "./components/FeeCheckView";
 import { ReportView } from "./components/ReportView";
 import { PricingView } from "./components/PricingView";
+import { SiteFooter } from "./components/SiteFooter";
 
 export type Cards = Record<string, RateCard>;
 
@@ -123,14 +124,7 @@ export default function App() {
         {tab === "pricing" && <PricingView {...ctx} />}
       </main>
 
-      <footer className="border-t border-slate-800 bg-slate-900/60">
-        <div className="gutter mx-auto flex max-w-7xl flex-col gap-2 py-6 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-          <p>
-            <span className="font-semibold text-slate-200">ReconOS</span> finds the money your couriers and payment gateways owe you.
-          </p>
-          <p>Your files are checked in your browser and never uploaded.</p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
