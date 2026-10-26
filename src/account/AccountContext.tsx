@@ -45,10 +45,11 @@ export const useAccount = () => {
   return a;
 };
 
-const friendly = (msg: string) =>
+const friendly = (msg: string, step: "send" | "verify" | "other" = "other") =>
   /rate limit|too many/i.test(msg) ? "Too many tries. Wait a minute and try again."
-  : /expired|invalid/i.test(msg) ? "That code didn't work. Check it, or send a new one."
-  : msg;
+  : /invalid api key|no api key|jwt/i.test(msg) ? "Login isn't set up correctly on our side (the site's Supabase key). Please tell us."
+  : step === "verify" && /expired|invalid/i.test(msg) ? "That code didn't work. Check it, or send a new one."
+  : step === "send" ? `Couldn't send the login email: ${msg}` : msg;
 
 export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(!supabase);
@@ -92,12 +93,12 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     sendCode: async (email) => {
       if (!supabase) return "Accounts aren't switched on yet.";
       const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: window.location.origin + "/#account" } });
-      return error ? friendly(error.message) : null;
+      return error ? friendly(error.message, "send") : null;
     },
     verifyCode: async (email, code) => {
       if (!supabase) return "Accounts aren't switched on yet.";
       const { error } = await supabase.auth.verifyOtp({ email, token: code, type: "email" });
-      return error ? friendly(error.message) : null;
+      return error ? friendly(error.message, "verify") : null;
     },
     google: async () => {
       if (!supabase) return "Accounts aren't switched on yet.";
