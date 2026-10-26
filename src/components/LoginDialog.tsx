@@ -75,7 +75,7 @@ export function LoginDialog() {
           </form>
         ) : (
           <form onSubmit={verify} noValidate className="mt-5 grid gap-3">
-            <p className="text-sm text-slate-300">We sent a code to <strong className="font-semibold text-slate-100">{email}</strong>. It can take a minute; check spam too.</p>
+            <p className="text-sm text-slate-300">We sent a login email to <strong className="font-semibold text-slate-100">{email}</strong>. Enter the code from it below, or click the link in it on this device. It can take a minute; check spam too.</p>
             <label className="grid gap-1 text-sm">
               <span className="text-slate-300">Code</span>
               <input ref={first} id="login-code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 8))} placeholder="123456" className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-center font-mono text-xl tracking-[0.4em] focus:border-emerald-400 focus:outline-none" />
