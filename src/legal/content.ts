@@ -36,7 +36,8 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         { ul: [
           "The files you check with ReconOS (Shopify, courier, gateway and bank reports, and rate cards) are read inside your own browser. They are never uploaded to us and we never see them.",
-          "We only collect what you choose to give us: your details if you join early access, and anything you send us by email.",
+          "We only collect what you choose to give us: your details if you join early access or create an account, and anything you send us by email.",
+          "If you create an account, we keep your email, brand name, partners, rate cards and saved audit results (totals and the list of claims with order IDs, AWB numbers and amounts). Never your report files, and never your customers' names, addresses or phone numbers. You can delete all of it from your Account page.",
           "We use Microsoft Clarity to understand how people use the website, only if you allow it. It never sees your files or results. We do not use advertising trackers or tracking pixels, and we never sell your data.",
           "You can ask us to see, correct or delete your data at any time by writing to " + E + ".",
         ] },
@@ -63,6 +64,8 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         { ul: [
           "Early access sign-up: your work email address, and if you choose to give them, your store name and your approximate monthly order volume.",
+          "Account: your email address (and your name and profile picture if you log in with Google), your brand name, the couriers and gateways you use, your rate cards, and your saved audit results: the month, the partners checked, the totals, and each finding with its order ID, AWB number, reference, amount, dates and reason. Saved audits do not include your report files or your customers' names, addresses or phone numbers.",
+          "Plan details: which plan you are on, its status and renewal date, and the customer and subscription IDs our payment provider gives us. We never see or store your card, UPI or bank details.",
           "Emails you send us: your email address, name if you include it, and what you write.",
           "Basic technical data: when you visit the website, our hosting provider automatically records standard server log information such as your IP address, browser type, the pages requested and the time of the request. When the page loads its fonts, Google's font service receives your IP address in the same way.",
           "Website usage data, only if you allow it: Microsoft Clarity records how you use the website, such as pages viewed, clicks, scrolling, mouse movement, device and browser type, approximate location from your IP address, and a cookie ID. Pages that show your own files and results, and anything you type, are hidden from it.",
@@ -77,6 +80,7 @@ export const PRIVACY: LegalDoc = {
         { p: "We use each type of data only for the purpose it was collected for:" },
         { ul: [
           "Sign-up details: to tell you when monthly audits open for your store and to send you updates about ReconOS that you asked for (based on your consent).",
+          "Account details and saved audits: to log you in, keep your rates and past results available on any device, apply your plan, and let you download your results (based on your consent, given when you create an account).",
           "Emails you send: to reply to you and help with your question (based on your consent, given when you write to us).",
           "Technical data: to keep the website running, secure and free from abuse.",
           "Website usage data: to see which parts of the website are confusing or broken, and improve them (based on your consent, given in the cookie banner).",
@@ -88,7 +92,7 @@ export const PRIVACY: LegalDoc = {
     {
       h: "5. Your consent",
       blocks: [
-        { p: "When you join early access you tick a box agreeing to this policy. You can withdraw your consent at any time, as easily as you gave it, by emailing " + E + " or using the unsubscribe link in any email from us. After you withdraw, we stop using your data for that purpose and delete it within 30 days, unless a law requires us to keep it. Withdrawing does not affect anything we did before." },
+        { p: "When you join early access or create an account you tick a box agreeing to this policy. You can withdraw your consent at any time, as easily as you gave it, by emailing " + E + " or using the unsubscribe link in any email from us. After you withdraw, we stop using your data for that purpose and delete it within 30 days, unless a law requires us to keep it. Withdrawing does not affect anything we did before." },
       ],
     },
     {
@@ -97,10 +101,11 @@ export const PRIVACY: LegalDoc = {
         { p: "We share personal data only with service providers that help us run ReconOS, who act on our instructions and may use it only to provide their service to us:" },
         { ul: [
           "Vercel Inc., which hosts this website.",
-          "Google LLC, which provides the website's fonts and our email.",
+          "Supabase Inc., which handles logins and stores account data and saved audits.",
+          "Google LLC, which provides the website's fonts and our email, and Google login if you choose it.",
           "Microsoft Corporation, which provides Microsoft Clarity, only if you allow it. Microsoft may also use this data as described in the Microsoft Privacy Statement.",
           "The form service we use to receive early access sign-ups.",
-          "Our payment gateway, once paid plans open, to take payments.",
+          "Dodo Payments, which sells our paid plans as merchant of record. It collects your payment and billing details directly, under its own privacy policy, and tells us your plan status.",
         ] },
         { p: "We may also disclose personal data if the law requires it, for example to respond to a valid order from a court or government authority. We never sell or rent personal data." },
       ],
@@ -116,6 +121,7 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         { ul: [
           "Early access details: until you ask us to delete them or withdraw consent, and in any case no longer than 24 months after our last contact with you.",
+          "Account data and saved audits: until you delete them or your account. Deleting from the Account page removes them straight away from our live database, and from backups within 30 days.",
           "Emails: for as long as needed to deal with your question, and then up to 12 months.",
           "Server logs: for the short period our hosting provider keeps them for security and operations.",
           "Website usage data in Microsoft Clarity: up to 13 months, after which it is deleted.",
@@ -136,6 +142,7 @@ export const PRIVACY: LegalDoc = {
           "have your grievances heard and resolved;",
           "nominate another person to exercise these rights on your behalf if you die or become unable to.",
         ] },
+        { p: "If you have an account, you can download your saved audits, delete them, or delete your whole account yourself from the Account page." },
         { p: `To use any of these rights, email ${E} with the subject "Privacy request". We may ask you to confirm your identity first. We will respond within 30 days.` },
       ],
     },
@@ -213,7 +220,7 @@ export const TERMS: LegalDoc = {
     {
       h: "4. Your files and data",
       blocks: [
-        { p: "Files you check are read in your browser and are not sent to us (see our Privacy Policy). You keep all rights to your files and to the results, including the draft emails, which you are free to use. You confirm you have the right to use the data in your files, including your customers' personal data, under your agreements and under the law." },
+        { p: "Files you check are read in your browser and are not sent to us (see our Privacy Policy). If you have an account, the results of your audits are saved to it so you can see them later; you can delete them at any time. You keep all rights to your files and to the results, including the draft emails, which you are free to use. You confirm you have the right to use the data in your files, including your customers' personal data, under your agreements and under the law." },
       ],
     },
     {
@@ -244,9 +251,10 @@ export const TERMS: LegalDoc = {
     {
       h: "8. Paid plans",
       blocks: [
-        { p: "Paid plans are not open for payment yet. When they are:" },
+        { p: "You need an account to run an audit on your own files. The free plan includes one audit month. Paid plans add unlimited audits, ready-to-send claim emails and the weekly weight check." },
         { ul: [
-          "prices will be shown on the Pricing page in Indian rupees, with any applicable taxes added at checkout;",
+          "Paid plans are sold through Dodo Payments, which acts as merchant of record: it is the seller on your invoice, takes the payment and handles applicable taxes. Its own terms also apply to the purchase;",
+          "prices are shown on the Pricing page in Indian rupees, with any applicable taxes added at checkout;",
           "monthly plans are billed in advance and renew each month until you cancel;",
           "we will give at least 30 days' notice by email before any price increase affects you;",
           "cancellations and refunds follow our Refund and Cancellation Policy;",
@@ -330,10 +338,10 @@ export const REFUNDS: LegalDoc = {
     {
       h: "2. Paid plans",
       blocks: [
-        { p: "Paid plans are not open for payment yet. When they open, this is how they will work:" },
+        { p: "Paid plans are sold and billed by Dodo Payments, our merchant of record." },
         { ul: [
           "Plans are billed monthly, in advance.",
-          `You can cancel at any time by emailing ${E} from the email address you signed up with, or from your account once accounts are available.`,
+          `You can cancel at any time using the link in your Dodo Payments receipt email, or by emailing ${E} from the email address on your account.`,
           "Cancelling stops future payments. You keep access until the end of the month you have already paid for.",
           "We do not refund part-used months, except in the cases below.",
         ] },
@@ -354,7 +362,7 @@ export const REFUNDS: LegalDoc = {
     {
       h: "4. How to ask for a refund",
       blocks: [
-        { p: `Email ${E} with the subject "Refund request", the email address on your account, the date and amount of the payment, and the payment reference. We will reply within 2 working days and decide within 7 working days. Approved refunds are sent to the original payment method and usually reach you within 5 to 7 working days, depending on your bank.` },
+        { p: `Email ${E} with the subject "Refund request", the email address on your account, the date and amount of the payment, and the payment reference. We will reply within 2 working days and decide within 7 working days. Approved refunds are issued through Dodo Payments to the original payment method and usually reach you within 5 to 7 working days, depending on your bank.` },
         { p: "If something is wrong with a charge, please contact us before raising a dispute with your bank, so we can fix it quickly." },
       ],
     },
@@ -371,7 +379,7 @@ export const SHIPPING: LegalDoc = {
       blocks: [
         { ul: [
           "The free audit is available immediately on this website. There is nothing to install.",
-          "When paid plans open, access starts as soon as your payment is confirmed. We will email you a confirmation and, where relevant, an invoice.",
+          "Paid features switch on as soon as your payment is confirmed, usually within a minute. Dodo Payments emails you a receipt and invoice.",
           "There are no physical goods, shipping charges or delivery times.",
           `If you have paid and cannot access the service, email ${E} and we will sort it out within 1 working day.`,
         ] },

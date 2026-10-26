@@ -39,9 +39,9 @@ export function KindTag({ kind }: { kind: Finding["kind"] }) {
 }
 
 export function Btn({
-  children, onClick, variant = "secondary", className = "", type = "button", disabled,
+  children, onClick, variant = "secondary", className = "", type = "button", disabled, id,
 }: {
-  children: React.ReactNode; onClick?: () => void; variant?: "primary" | "secondary" | "ghost"; className?: string; type?: "button" | "submit"; disabled?: boolean;
+  children: React.ReactNode; onClick?: () => void; variant?: "primary" | "secondary" | "ghost"; className?: string; type?: "button" | "submit"; disabled?: boolean; id?: string;
 }) {
   const v =
     variant === "primary"
@@ -50,7 +50,7 @@ export function Btn({
         ? "text-slate-300 hover:bg-slate-800 hover:text-white"
         : "border border-slate-700 bg-slate-900 text-slate-100 hover:border-slate-500";
   return (
-    <button type={type} onClick={onClick} disabled={disabled} className={`inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${v} ${className}`}>
+    <button id={id} type={type} onClick={onClick} disabled={disabled} className={`inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${v} ${className}`}>
       {children}
     </button>
   );

@@ -6,6 +6,8 @@ import {LEGAL_BY_PATH} from './legal/content.ts';
 import './index.css';
 import {CookieBanner} from './components/CookieBanner.tsx';
 import {initAnalytics} from './analytics.ts';
+import {AccountProvider} from './account/AccountContext.tsx';
+import {LoginDialog} from './components/LoginDialog.tsx';
 
 initAnalytics();
 
@@ -14,7 +16,12 @@ const legal = LEGAL_BY_PATH[window.location.pathname.replace(/\/+$/, '')];
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {legal ? <LegalPage doc={legal} /> : <App />}
+    {legal ? <LegalPage doc={legal} /> : (
+      <AccountProvider>
+        <App />
+        <LoginDialog />
+      </AccountProvider>
+    )}
     <CookieBanner />
   </StrictMode>,
 );

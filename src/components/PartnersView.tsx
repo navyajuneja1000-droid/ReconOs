@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from "react";
 import type { ViewCtx } from "../App";
 import { bucketMeta } from "../engine/audit";
 import { buildClaims } from "../engine/claims";
+import { Locked } from "./AccountView";
 import { SPEC_BY_KIND } from "../engine/detect";
 import { emptyCard, PARTNER_BY_ID } from "../engine/partners";
 import type { PartnerSummary } from "../engine/types";
@@ -117,7 +118,8 @@ function Detail({ p, ctx }: { p: PartnerSummary; ctx: ViewCtx }) {
             <div className="px-5 py-4"><RateCardEditor key={p.id} card={card} onChange={setCard} compact data={ctx.data} /></div>
           </Panel>
 
-          {draft && (
+          {draft && ctx.locked && <Locked title={`Claim email to ${p.name} ready, worth ${inr(draft.total)}`}>Upgrade to get it ready to send.</Locked>}
+          {draft && !ctx.locked && (
             <Panel className="flex flex-col">
               <div className="border-b border-slate-800 px-5 py-4">
                 <div className="flex items-baseline justify-between gap-3"><h2 className="font-semibold">Claim email to {p.name}</h2><span className="font-semibold tabular-nums text-emerald-400">{inr(draft.total)}</span></div>

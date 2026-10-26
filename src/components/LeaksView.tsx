@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import type { ViewCtx } from "../App";
 import { buildClaims, findingsCsv } from "../engine/claims";
+import { Locked } from "./AccountView";
 import type { BucketId, Finding } from "../engine/types";
 import { partnerName } from "../engine/partners";
 import { Btn, fmtDay, inr, KindTag, Panel, PanelHead, useCopy } from "../ui";
@@ -33,7 +34,7 @@ export function FindingItem({ f }: { f: Finding }) {
   );
 }
 
-export function LeaksView({ result, brandName, source, partner: who, setPartner: setWho }: ViewCtx) {
+export function LeaksView({ result, brandName, source, partner: who, setPartner: setWho, locked }: ViewCtx) {
   const [kind, setKind] = useState<"all" | "claim" | "check">("all");
   const { copied, copy } = useCopy();
   const allDrafts = useMemo(() => buildClaims(result, source === "sample" ? "Indigo Loom" : brandName), [result, brandName, source]);
@@ -99,7 +100,12 @@ export function LeaksView({ result, brandName, source, partner: who, setPartner:
 
         <div className="grid content-start gap-4">
           <h2 className="text-lg font-semibold">Claim emails, one per partner</h2>
-          {drafts.map((d) => (
+          {locked && drafts.length > 0 && (
+            <Locked title={`${drafts.length} claim email${drafts.length === 1 ? "" : "s"} ready, worth ${inr(drafts.reduce((a, d) => a + d.total, 0))}`}>
+              Upgrade to get a ready-to-send email for each partner, listing every order and amount. The list on the left stays free.
+            </Locked>
+          )}
+          {!locked && drafts.map((d) => (
             <Panel key={d.counterparty} className="flex flex-col">
               <div className="border-b border-slate-800 px-5 py-4">
                 <div className="flex items-baseline justify-between gap-3">

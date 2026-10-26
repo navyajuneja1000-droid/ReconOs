@@ -1,12 +1,13 @@
 import React, { useEffect, useRef } from "react";
 import { inr } from "../ui";
+import { useAccount } from "../account/AccountContext";
 
-export type Tab = "overview" | "dashboard" | "partners" | "upload" | "orders" | "leaks" | "fees" | "report" | "weights" | "pricing";
+export type Tab = "overview" | "dashboard" | "partners" | "upload" | "orders" | "leaks" | "fees" | "report" | "weights" | "pricing" | "account";
 
 /** "site" pages describe the product; the rest are the tool itself */
 export const SITE_TABS: Tab[] = ["overview", "pricing"];
 
-export const TABS: { id: Tab; label: string }[] = [
+export const TABS: { id: Tab; label: string; hidden?: boolean }[] = [
   { id: "overview", label: "How it works" },
   { id: "dashboard", label: "Dashboard" },
   { id: "partners", label: "Partners" },
@@ -17,6 +18,7 @@ export const TABS: { id: Tab; label: string }[] = [
   { id: "report", label: "Report" },
   { id: "weights", label: "Weekly weight check" },
   { id: "pricing", label: "Pricing" },
+  { id: "account", label: "Account", hidden: true },
 ];
 
 export function Logo() {
@@ -41,7 +43,8 @@ export function Navbar({
   checkTotal: number;
   onBackToSample: () => void;
 }) {
-  const onSite = SITE_TABS.includes(tab);
+  const onSite = SITE_TABS.includes(tab) || tab === "account";
+  const account = useAccount();
   const nav = useRef<HTMLElement>(null);
   // keep the open tab in view on phones, where the row scrolls sideways
   useEffect(() => {
@@ -58,7 +61,7 @@ export function Navbar({
           {source === "sample" ? (
             <p>You're looking at sample data for <strong className="font-semibold">Indigo Loom</strong>, a made-up brand. Every screen works the same with your own files.</p>
           ) : (
-            <p>You're looking at <strong className="font-semibold">{brandName}</strong>'s files. Nothing has left this browser tab.</p>
+            <p>You're looking at <strong className="font-semibold">{brandName}</strong>'s files. {account.session ? "Your files stay in this browser; the results are saved to your account." : "Nothing has left this browser tab."}</p>
           )}
           {source === "sample" ? (
             <button type="button" onClick={() => setTab("upload")} className="font-semibold text-emerald-300 underline-offset-4 hover:underline">Check my own files</button>
@@ -85,7 +88,18 @@ export function Navbar({
             <span className="block text-xs text-slate-400">Worth a check</span>
             <span className="block font-semibold text-amber-300 tabular-nums">{inr(checkTotal)}</span>
           </button>}
-          <button type="button" onClick={() => setTab("upload")} className="rounded-lg bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
+          {account.enabled && (
+            <button
+              type="button"
+              id="account-button"
+              onClick={() => (account.session ? setTab("account") : account.askLogin("account"))}
+              aria-current={tab === "account" ? "page" : undefined}
+              className={`whitespace-nowrap rounded-lg border px-3 py-2 text-sm ${tab === "account" ? "border-emerald-400 text-emerald-300" : "border-slate-700 text-slate-200 hover:border-slate-500"}`}
+            >
+              {account.session ? <>Account{account.paid && <span className="hidden sm:inline"> · Paid</span>}</> : "Log in"}
+            </button>
+          )}
+          <button type="button" onClick={() => setTab("upload")} className="whitespace-nowrap rounded-lg bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
             Upload files
           </button>
         </div>
@@ -94,7 +108,7 @@ export function Navbar({
       <div className="relative mx-auto max-w-7xl">
       <nav ref={nav} aria-label="Sections" className="gutter overflow-x-auto">
         <ul className="flex gap-1 text-sm">
-          {TABS.map((t) => (
+          {TABS.filter((t) => !t.hidden).map((t) => (
             <li key={t.id} className={t.id === "dashboard" || t.id === "pricing" ? "flex items-center before:mx-1 before:h-4 before:w-px before:bg-slate-800 before:content-['']" : ""}>
               <button
                 type="button"

@@ -3,8 +3,20 @@ import type { ViewCtx } from "../App";
 import { PLANS } from "../pricing";
 import { inr, Panel } from "../ui";
 import { SignupForm } from "./SignupForm";
+import { useAccount } from "../account/AccountContext";
+import { Btn } from "../ui";
 
-export function PricingView({ result, source }: ViewCtx) {
+export function PricingView({ result, source, setTab }: ViewCtx) {
+  const account = useAccount();
+  const [busy, setBusy] = React.useState<string | null>(null);
+  const [err, setErr] = React.useState("");
+  const choose = async (id: string) => {
+    if (id === "audit") return setTab("upload");
+    if (!account.session) return account.askLogin("upgrade");
+    setBusy(id); setErr("");
+    const e = await account.checkout(id as "starter" | "growth");
+    setBusy(null); if (e) setErr(e);
+  };
   const days =
     result.period.from && result.period.to
       ? Math.max(1, Math.round((result.period.to.getTime() - result.period.from.getTime()) / 86_400_000) + 1)
@@ -16,7 +28,7 @@ export function PricingView({ result, source }: ViewCtx) {
       <div>
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Pricing</h1>
         <p className="mt-1 max-w-[70ch] text-slate-300">Start with a free audit. Pay only if you want ReconOS to check every month. Early-access prices, no annual lock-in.</p>
-        <p className="mt-2 max-w-[70ch] text-sm text-slate-400">Prices are in Indian rupees, per month, billed in advance. Any applicable taxes are added at checkout. Paid plans aren't open for payment yet. Cancel any time; see the <a href="/refunds" className="text-emerald-300 hover:underline">Refund and Cancellation Policy</a> and <a href="/terms" className="text-emerald-300 hover:underline">Terms</a>.</p>
+        <p className="mt-2 max-w-[70ch] text-sm text-slate-400">Prices are in Indian rupees, per month, billed in advance. Any applicable taxes are added at checkout. {account.enabled ? "Payments are handled securely by Dodo Payments." : "Paid plans aren't open for payment yet."} Cancel any time; see the <a href="/refunds" className="text-emerald-300 hover:underline">Refund and Cancellation Policy</a> and <a href="/terms" className="text-emerald-300 hover:underline">Terms</a>.</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -30,9 +42,22 @@ export function PricingView({ result, source }: ViewCtx) {
                 <li key={f} className="flex gap-2"><span aria-hidden="true" className="text-emerald-400">✓</span>{f}</li>
               ))}
             </ul>
+            {account.enabled && (
+              <div className="mt-auto pt-6">
+                {account.paid && account.profile?.plan === p.id ? (
+                  <p className="text-sm font-medium text-emerald-300">Your current plan</p>
+                ) : (
+                  <Btn id={`choose-${p.id}`} variant={"highlight" in p && p.highlight ? "primary" : "secondary"} className="w-full py-2.5" disabled={!!busy || (p.id !== "audit" && account.paid)} onClick={() => choose(p.id)}>
+                    {busy === p.id ? "Opening checkout" : p.id === "audit" ? "Start free audit" : account.paid ? "Contact us to switch" : `Choose ${p.name}`}
+                  </Btn>
+                )}
+              </div>
+            )}
           </Panel>
         ))}
       </div>
+
+      {err && <p role="alert" className="-mt-6 text-sm text-rose-300">{err}</p>}
 
       <Panel className="grid gap-4 p-6 md:grid-cols-[1.2fr_1fr] md:items-center">
         <div>

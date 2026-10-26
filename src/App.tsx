@@ -17,6 +17,9 @@ import { PricingView } from "./components/PricingView";
 import { SiteFooter } from "./components/SiteFooter";
 import { WeightCheckView } from "./components/WeightCheckView";
 import { clearSaved, loadSaved, storeSaved } from "./engine/saved";
+import { useAccount } from "./account/AccountContext";
+import { canRunAudit, monthKey, monthLabel } from "./account/plan";
+import { AccountView, Locked } from "./components/AccountView";
 
 export type Cards = Record<string, RateCard>;
 
@@ -33,6 +36,8 @@ export type ViewCtx = {
   /** rate cards for the data on screen */
   cards: Cards;
   setCard: (c: RateCard) => void;
+  /** true when paid features (claim emails) are locked for the data on screen */
+  locked: boolean;
 };
 
 const tabFromHash = (): Tab => {
@@ -57,6 +62,38 @@ export default function App() {
   useEffect(() => storeSaved({ cards: fileCards, brand, picked }), [fileCards, brand, picked]);
   const forgetSaved = () => { clearSaved(); setFileCards({}); setBrand(""); setPicked([]); };
   const setFileCard = (c: RateCard) => setFileCards((prev) => ({ ...prev, [c.partner]: c }));
+
+  // ---------- accounts ----------
+  const account = useAccount();
+  const uid = account.session?.user.id;
+  const [synced, setSynced] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState<string | null>(null);
+  const [saveNote, setSaveNote] = useState("");
+  const [pendingRun, setPendingRun] = useState(false);
+  // on login, bring in the rates and brand details saved to the account
+  useEffect(() => {
+    if (!uid || !account.profile || synced === uid) return;
+    let off = false;
+    account.loadCards().then((server) => {
+      if (off) return;
+      setFileCards((local) => {
+        const merged = { ...local };
+        for (const [p, c] of Object.entries(server)) if (!merged[p] || (!merged[p].confirmed && c.confirmed)) merged[p] = c;
+        return merged;
+      });
+      if (!brand.trim() && account.profile?.brand) setBrand(account.profile.brand);
+      if (!picked.length && account.profile?.picked?.length) setPicked(account.profile.picked);
+      setSynced(uid);
+    });
+    return () => { off = true; };
+  }, [uid, account.profile]); // eslint-disable-line react-hooks/exhaustive-deps
+  // keep the account copy up to date (after the first merge)
+  useEffect(() => {
+    if (!uid || synced !== uid) return;
+    const t = setTimeout(() => { void account.saveCards(fileCards); void account.saveProfile({ brand, picked }); }, 1200);
+    return () => clearTimeout(t);
+  }, [fileCards, brand, picked, uid, synced]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!uid) setSynced(null); }, [uid]);
 
   useEffect(() => {
     const on = () => setTabState(tabFromHash());
@@ -86,7 +123,33 @@ export default function App() {
 
   // a partner filter from the other data set means nothing here
   const known = partner === "all" || partner === "team" || result.partners.some((p) => p.id === partner);
-  const ctx: ViewCtx = { result, data, trail, source, brandName, setTab, partner: known ? partner : "all", setPartner, cards, setCard };
+  const locked = account.enabled && source === "files" && !account.paid;
+  const ctx: ViewCtx = { result, data, trail, source, brandName, setTab, partner: known ? partner : "all", setPartner, cards, setCard, locked };
+
+  // save the brand's audit (totals and claim list only) whenever it changes
+  useEffect(() => {
+    if (!uid || source !== "files") return;
+    const t = setTimeout(() => { account.saveAudit(result).then((e) => setSaveNote(e ?? "")); }, 1500);
+    return () => clearTimeout(t);
+  }, [result, source, uid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const runAudit = () => {
+    if (account.enabled) {
+      if (!account.session) { setPendingRun(true); account.askLogin("audit"); return; }
+      const preview = runAuditFull(items.filter(isReady), ratesFromCards(Object.fromEntries(Object.entries(fileCards).filter(([, c]) => isCardReady(c))))).result;
+      const month = monthKey(preview);
+      if (!canRunAudit(account.paid, account.audits, month)) {
+        const used = account.audits.find((x) => x.month_key !== month);
+        setBlocked(`Your free audit was for ${used ? monthLabel(used.month_key) : "another month"}. These files are for ${monthLabel(month)}.`);
+        return;
+      }
+    }
+    setBlocked(null); setSource("files"); setPartner("all"); setTab("dashboard");
+  };
+  // finish a run that was waiting for login
+  useEffect(() => {
+    if (pendingRun && account.session && account.profile) { setPendingRun(false); runAudit(); }
+  }, [pendingRun, account.session, account.profile, account.audits]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filePartners = partnersIn(items);
   // the brand's files read so far (before any rates), used to fill rate cards from what was actually charged
@@ -114,11 +177,17 @@ export default function App() {
         checkTotal={result.checkTotal}
         onBackToSample={() => { setSource("sample"); setPartner("all"); }}
       />
+      {saveNote && source === "files" && (
+        <p role="status" className="gutter mx-auto w-full max-w-7xl pt-4 text-sm text-amber-300">{saveNote}</p>
+      )}
 
       <main className="gutter mx-auto w-full max-w-7xl flex-1 pt-6 pb-16" data-clarity-mask={tab === "upload" || tab === "weights" ? "True" : undefined}>
         {tab === "overview" && <OverviewView {...ctx} />}
         {tab === "dashboard" && <DashboardView {...ctx} />}
         {tab === "partners" && <PartnersView {...ctx} />}
+        {tab === "upload" && blocked && (
+          <div className="mb-6"><Locked title="Upgrade to audit another month">{blocked} Paid plans include unlimited audits, ready-to-send claim emails and the weekly weight check.</Locked></div>
+        )}
         {tab === "upload" && (
           <UploadView
             items={items}
@@ -133,7 +202,7 @@ export default function App() {
             savedCount={Object.keys(fileCards).length}
             hadSaved={hadSaved}
             onForget={forgetSaved}
-            onRun={() => { setSource("files"); setPartner("all"); setTab("dashboard"); }}
+            onRun={runAudit}
           />
         )}
         {tab === "orders" && <OrderTrailView {...ctx} />}
@@ -141,7 +210,8 @@ export default function App() {
         {tab === "fees" && <FeeCheckView {...ctx} />}
         {tab === "report" && <ReportView {...ctx} />}
         {tab === "pricing" && <PricingView {...ctx} />}
-        {tab === "weights" && <WeightCheckView cards={fileCards} setCard={setFileCard} sample={sampleIntakes} sampleAsOf={sample.asOf} setTab={setTab} />}
+        {tab === "weights" && <WeightCheckView cards={fileCards} setCard={setFileCard} sample={sampleIntakes} sampleAsOf={sample.asOf} setTab={setTab} locked={account.enabled && !account.paid} />}
+        {tab === "account" && <AccountView />}
       </main>
 
       <SiteFooter />

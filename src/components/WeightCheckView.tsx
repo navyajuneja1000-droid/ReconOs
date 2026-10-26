@@ -6,6 +6,7 @@ import { download, readTable, UnsupportedFileError } from "../engine/readFile";
 import { FALLBACK_COURIER_DAYS } from "../engine/types";
 import { addWorkingDays, daysBetween } from "../engine/util";
 import { Btn, fmtDay, inr, Panel, PanelHead } from "../ui";
+import { Locked } from "./AccountView";
 
 type Item = Intake & { uid: string };
 let seq = 0;
@@ -56,13 +57,15 @@ const csvCell = (v: string | number) => {
 };
 
 export function WeightCheckView({
-  cards, setCard, sample, sampleAsOf, setTab,
+  cards, setCard, sample, sampleAsOf, setTab, locked = false,
 }: {
   cards: Record<string, RateCard>;
   setCard: (c: RateCard) => void;
   sample: Intake[];
   sampleAsOf: Date;
   setTab: (t: Tab) => void;
+  /** weekly checks on the brand's own files are a paid feature when accounts are on */
+  locked?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<Item[]>([]);
@@ -218,6 +221,12 @@ export function WeightCheckView({
 
       {usingSample && <p className="rounded-lg border border-sky-500/30 bg-sky-500/5 px-4 py-3 text-sm text-sky-200">Showing an example with the sample brand's data, as of {fmtDay(sampleAsOf)}. Add your own weight report above to see yours.</p>}
 
+      {!usingSample && locked && (
+        <Locked title={`${open.length} weight charge${open.length === 1 ? "" : "s"} found in your file, worth ${inr(sum(open))}`}>
+          The weekly weight check is part of the paid plans: every charge you can still dispute, closest deadline first, with a download and reminders.
+        </Locked>
+      )}
+      {(usingSample || !locked) && <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           { label: "You can still dispute", value: inr(sum(open)), sub: `${open.length} charge${open.length === 1 ? "" : "s"}`, tone: "text-emerald-400" },
@@ -270,6 +279,7 @@ export function WeightCheckView({
         </div>
       </Panel>
 
+      </>}
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel>
           <PanelHead title="Days you get to dispute" sub="Working days from when the charge is raised. Check your courier agreement; this is saved in your rate card." />
