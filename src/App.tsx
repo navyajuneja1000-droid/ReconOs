@@ -102,7 +102,9 @@ export default function App() {
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
+    // Clarity never records a brand's own data: everything is masked once their files are loaded,
+    // and the upload and weight check pages are always masked.
+    <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100" data-clarity-mask={source === "files" ? "True" : undefined}>
       <Navbar
         tab={tab}
         setTab={setTab}
@@ -113,7 +115,7 @@ export default function App() {
         onBackToSample={() => { setSource("sample"); setPartner("all"); }}
       />
 
-      <main className="gutter mx-auto w-full max-w-7xl flex-1 pt-6 pb-16">
+      <main className="gutter mx-auto w-full max-w-7xl flex-1 pt-6 pb-16" data-clarity-mask={tab === "upload" || tab === "weights" ? "True" : undefined}>
         {tab === "overview" && <OverviewView {...ctx} />}
         {tab === "dashboard" && <DashboardView {...ctx} />}
         {tab === "partners" && <PartnersView {...ctx} />}

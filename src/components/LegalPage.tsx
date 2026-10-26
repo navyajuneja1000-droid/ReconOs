@@ -12,6 +12,9 @@ function withLinks(text: string): React.ReactNode {
 export function LegalPage({ doc }: { doc: LegalDoc }) {
   useEffect(() => {
     document.title = `${doc.title} | ReconOS`;
+    // the page renders after load, so jump to #section links ourselves
+    const id = window.location.hash.slice(1);
+    if (id) document.getElementById(id)?.scrollIntoView();
   }, [doc]);
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
@@ -38,7 +41,7 @@ export function LegalPage({ doc }: { doc: LegalDoc }) {
         <p className="mt-1 text-sm text-slate-400">Last updated {LEGAL.updated}</p>
         <p className="mt-4 text-slate-300">{withLinks(doc.intro)}</p>
         {doc.sections.map((s) => (
-          <section key={s.h} className="mt-8">
+          <section key={s.h} id={s.id} className="mt-8 scroll-mt-6">
             <h2 className="text-lg font-semibold text-slate-100">{s.h}</h2>
             {s.blocks.map((b, i) =>
               "p" in b ? (

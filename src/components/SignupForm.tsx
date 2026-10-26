@@ -41,7 +41,7 @@ export function SignupForm({ id = "signup" }: { id?: string }) {
       const res = await fetch(ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ _subject: "New ReconOS early access sign-up", _replyto: email.trim(), email: email.trim(), store: store.trim(), monthlyOrders: orders, source: "reconos-site", consent: "Agreed to Privacy Policy (version 17 October 2026) and to receive emails about ReconOS early access", consentAt: new Date().toISOString() }),
+        body: JSON.stringify({ _subject: "New ReconOS early access sign-up", _replyto: email.trim(), email: email.trim(), store: store.trim(), monthlyOrders: orders, source: "reconos-site", consent: "Agreed to Privacy Policy (version 26 October 2026) and to receive emails about ReconOS early access", consentAt: new Date().toISOString() }),
       });
       if (!res.ok) throw new Error(String(res.status));
       setState("done");
@@ -56,7 +56,7 @@ export function SignupForm({ id = "signup" }: { id?: string }) {
     return <p id={id} className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-4 text-emerald-200">{msg}</p>;
   }
   return (
-    <form id={id} onSubmit={submit} noValidate className="grid gap-3 sm:grid-cols-[1.4fr_1fr_0.9fr_auto] sm:items-end">
+    <form id={id} onSubmit={submit} noValidate data-clarity-mask="True" className="grid gap-3 sm:grid-cols-[1.4fr_1fr_0.9fr_auto] sm:items-end">
       <label className="grid gap-1 text-sm">
         <span className="text-slate-300">Work email</span>
         <input id={`${id}-email`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@yourbrand.in" className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-base text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none" />

@@ -16,11 +16,11 @@ export const LEGAL = {
   phone: "+91 85568 17288",
   place: "Gurugram, Haryana, India",
   courts: "Gurugram, Haryana",
-  updated: "17 October 2026",
+  updated: "26 October 2026",
 };
 
 export type Block = { p: string } | { ul: string[] };
-export interface Section { h: string; blocks: Block[] }
+export interface Section { h: string; blocks: Block[]; id?: string }
 export interface LegalDoc { path: string; title: string; intro: string; sections: Section[] }
 
 const E = LEGAL.email;
@@ -37,7 +37,7 @@ export const PRIVACY: LegalDoc = {
         { ul: [
           "The files you check with ReconOS (Shopify, courier, gateway and bank reports, and rate cards) are read inside your own browser. They are never uploaded to us and we never see them.",
           "We only collect what you choose to give us: your details if you join early access, and anything you send us by email.",
-          "We do not use cookies, analytics, advertising trackers or tracking pixels, and we never sell your data.",
+          "We use Microsoft Clarity to understand how people use the website, only if you allow it. It never sees your files or results. We do not use advertising trackers or tracking pixels, and we never sell your data.",
           "You can ask us to see, correct or delete your data at any time by writing to " + E + ".",
         ] },
       ],
@@ -65,6 +65,7 @@ export const PRIVACY: LegalDoc = {
           "Early access sign-up: your work email address, and if you choose to give them, your store name and your approximate monthly order volume.",
           "Emails you send us: your email address, name if you include it, and what you write.",
           "Basic technical data: when you visit the website, our hosting provider automatically records standard server log information such as your IP address, browser type, the pages requested and the time of the request. When the page loads its fonts, Google's font service receives your IP address in the same way.",
+          "Website usage data, only if you allow it: Microsoft Clarity records how you use the website, such as pages viewed, clicks, scrolling, mouse movement, device and browser type, approximate location from your IP address, and a cookie ID. Pages that show your own files and results, and anything you type, are hidden from it.",
           "Payments (only once paid plans open): your billing name, email and the details needed for an invoice. Card, UPI and bank details are entered with our payment gateway and are never stored by us.",
         ] },
         { p: "We do not ask for, and ask you not to send us, sensitive information such as passwords, card numbers, bank account numbers or health information." },
@@ -78,6 +79,7 @@ export const PRIVACY: LegalDoc = {
           "Sign-up details: to tell you when monthly audits open for your store and to send you updates about ReconOS that you asked for (based on your consent).",
           "Emails you send: to reply to you and help with your question (based on your consent, given when you write to us).",
           "Technical data: to keep the website running, secure and free from abuse.",
+          "Website usage data: to see which parts of the website are confusing or broken, and improve them (based on your consent, given in the cookie banner).",
           "Billing details: to charge for a plan you chose, issue invoices and meet tax and accounting laws (a legitimate use allowed under the DPDP Act, including compliance with law).",
         ] },
         { p: "We do not use your data for advertising, and we do not make automated decisions about you that have legal or similarly significant effects." },
@@ -96,6 +98,7 @@ export const PRIVACY: LegalDoc = {
         { ul: [
           "Vercel Inc., which hosts this website.",
           "Google LLC, which provides the website's fonts and our email.",
+          "Microsoft Corporation, which provides Microsoft Clarity, only if you allow it. Microsoft may also use this data as described in the Microsoft Privacy Statement.",
           "The form service we use to receive early access sign-ups.",
           "Our payment gateway, once paid plans open, to take payments.",
         ] },
@@ -115,6 +118,7 @@ export const PRIVACY: LegalDoc = {
           "Early access details: until you ask us to delete them or withdraw consent, and in any case no longer than 24 months after our last contact with you.",
           "Emails: for as long as needed to deal with your question, and then up to 12 months.",
           "Server logs: for the short period our hosting provider keeps them for security and operations.",
+          "Website usage data in Microsoft Clarity: up to 13 months, after which it is deleted.",
           "Billing records: for as long as Indian tax and accounting laws require.",
         ] },
         { p: "When data is no longer needed, we delete it." },
@@ -156,8 +160,10 @@ export const PRIVACY: LegalDoc = {
     },
     {
       h: "13. Cookies and tracking",
+      id: "cookies",
       blocks: [
-        { p: "The website does not use cookies, analytics tools, advertising trackers or tracking pixels. The tool uses your browser's memory while the tab is open, to check your files. It also uses your browser's local storage to remember the rates, brand name and partner list you entered, only so you don't have to retype them. This stays on your device, is never sent to us and is not used to track you. If this ever changes, we will update this policy and ask for your consent where the law requires." },
+        { p: "If you click Allow in the cookie banner, the website loads Microsoft Clarity, which sets cookies (such as _clck and _clsk) to understand how the website is used. If you click No thanks, Clarity is not loaded and no analytics cookies are set. You can change your choice at any time with Cookie settings at the bottom of every page. Clarity is set up so it never records your files, your results or anything you type. We do not use advertising trackers or tracking pixels." },
+        { p: "The tool uses your browser's memory while the tab is open, to check your files. It also uses your browser's local storage to remember the rates, brand name and partner list you entered, only so you don't have to retype them. This stays on your device, is never sent to us and is not used to track you. If this ever changes, we will update this policy and ask for your consent where the law requires." },
       ],
     },
     {

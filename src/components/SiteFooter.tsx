@@ -1,5 +1,6 @@
 import React from "react";
 import { LEGAL } from "../legal/content";
+import { openCookieSettings } from "../analytics";
 
 const LINKS = [
   ["/privacy", "Privacy"],
@@ -23,6 +24,7 @@ export function SiteFooter() {
           {LINKS.map(([href, label]) => (
             <a key={href} href={href} className="hover:text-slate-200 hover:underline">{label}</a>
           ))}
+          <button type="button" onClick={openCookieSettings} className="hover:text-slate-200 hover:underline">Cookie settings</button>
           <a href={`mailto:${LEGAL.email}`} className="hover:text-slate-200 hover:underline">{LEGAL.email}</a>
         </nav>
         <p className="text-xs text-slate-500">
