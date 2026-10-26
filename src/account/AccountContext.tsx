@@ -5,11 +5,18 @@ import type { AuditResult } from "../engine/types";
 import type { RateCard } from "../engine/partners";
 
 const env = (import.meta as unknown as { env: Record<string, string | undefined> }).env;
-const URL_ = env.VITE_SUPABASE_URL;
-const KEY_ = env.VITE_SUPABASE_ANON_KEY;
+// Public values (safe in the browser; row security protects the data). A badly pasted setting falls back to these.
+const DEFAULT_URL = "https://xdnknrghedmkpsaklbjq.supabase.co";
+const DEFAULT_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkbmtucmdoZWRta3BzYWtsYmpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwMDY5NzksImV4cCI6MjEwODU4Mjk3OX0.FH1xa8MZXzHkv2TFBz9Bajqvc-y06svq2aA_Ibl1whg";
+const clean = (v: string | undefined) => (v ?? "").trim();
+const envUrl = clean(env.VITE_SUPABASE_URL), envKey = clean(env.VITE_SUPABASE_ANON_KEY);
+const URL_ = /^https:\/\/[a-z0-9]+\.supabase\.co$/.test(envUrl) ? envUrl : DEFAULT_URL;
+const KEY_ = /^(eyJ[\w-]+\.[\w-]+\.[\w-]+|sb_publishable_[\w-]+)$/.test(envKey) ? envKey : DEFAULT_KEY;
+// accounts stay off until the site is configured for them
+const ACCOUNTS_ON = !!(envUrl || envKey);
 
 /** Accounts switch on only when the Supabase project is configured; otherwise the site works as before. */
-export const supabase: SupabaseClient | null = URL_ && KEY_ ? createClient(URL_, KEY_, { auth: { persistSession: true, detectSessionInUrl: true, flowType: "pkce" } }) : null;
+export const supabase: SupabaseClient | null = ACCOUNTS_ON ? createClient(URL_, KEY_, { auth: { persistSession: true, detectSessionInUrl: true, flowType: "pkce" } }) : null;
 
 type LoginReason = "audit" | "upgrade" | "account" | null;
 interface Account {
