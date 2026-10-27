@@ -105,7 +105,7 @@ export function AccountView() {
       </div>
 
       {ret === "paid" && (
-        <Panel id="payment-banner" role="status" className={`p-5 ${a.paid ? "border-emerald-500/50 bg-emerald-950/30" : "border-slate-700"}`}>
+        <section id="payment-banner" role="status" className={`rounded-xl border p-5 ${a.paid ? "border-emerald-500/60 bg-emerald-950/40" : "border-slate-700 bg-slate-900/60"}`}>
           {a.paid ? (
             <>
               <h2 className="font-semibold text-emerald-200">Payment received. You're on {PRO.name}.</h2>
@@ -122,13 +122,13 @@ export function AccountView() {
               <p className="mt-1 text-sm text-slate-300">Refresh this page in a minute. If it still says Free, write to us with your Dodo Payments receipt and we'll switch it on.</p>
             </>
           )}
-        </Panel>
+        </section>
       )}
       {ret === "failed" && !a.paid && (
-        <Panel id="payment-banner" role="alert" className="border-rose-500/40 bg-rose-500/5 p-5">
+        <section id="payment-banner" role="alert" className="rounded-xl border border-rose-500/50 bg-rose-950/30 p-5">
           <h2 className="font-semibold text-rose-200">The payment didn't go through.</h2>
           <p className="mt-1 text-sm text-slate-300">You haven't been charged for a plan. You can try again below with the same or a different card.</p>
-        </Panel>
+        </section>
       )}
 
       <Panel>
