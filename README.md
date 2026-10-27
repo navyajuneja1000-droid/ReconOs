@@ -66,3 +66,13 @@ tests/           engine tests, plus tests/fixtures for real partner files
 scripts/         inspect tool for real files
 docs/            how to add a real partner file
 ```
+
+## Marketing skills
+
+`.claude/skills/` holds the [marketingskills](https://github.com/coreyhaines31/marketingskills) library by Corey Haines (MIT, see `.claude/skills/LICENSE-marketingskills`), copied at commit `17772c7` without its eval files. Claude Code picks them up automatically in this repo: ask for an SEO audit, landing page copy, a cold email or a launch plan and the matching skill runs.
+
+Every skill reads `.agents/product-marketing.md` first: the product, customer, competitors, voice and proof in one place. Keep it true. Add real founder quotes, results and tested lessons there as they come in, and never add a number that didn't happen.
+
+`public/robots.txt`, `public/sitemap.xml` and `public/llms.txt` are served as real files. The structured data in `index.html` and the prices in `llms.txt` must match `src/pricing.ts`; `tests/seo.test.ts` fails if they drift.
+
+To update the skills later: `npx skills add coreyhaines31/marketingskills`.

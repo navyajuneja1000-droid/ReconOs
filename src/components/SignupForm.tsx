@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Btn } from "../ui";
+import { track } from "../analytics";
 
 // Sign-ups go to Formspree. VITE_WAITLIST_ENDPOINT can override it (for example a test form).
 const ENDPOINT = (import.meta as unknown as { env: Record<string, string | undefined> }).env.VITE_WAITLIST_ENDPOINT || "https://formspree.io/f/xnpjwqjn";
@@ -44,9 +45,11 @@ export function SignupForm({ id = "signup" }: { id?: string }) {
         body: JSON.stringify({ _subject: "New ReconOS early access sign-up", _replyto: email.trim(), email: email.trim(), store: store.trim(), monthlyOrders: orders, source: "reconos-site", consent: "Agreed to Privacy Policy (version 26 October 2026) and to receive emails about ReconOS early access", consentAt: new Date().toISOString() }),
       });
       if (!res.ok) throw new Error(String(res.status));
+      track("signup_sent");
       setState("done");
       setMsg("You're on the list. We'll email you when your monthly audits are ready.");
     } catch {
+      track("signup_failed");
       setState("error");
       setMsg("That didn't go through. Check your connection and try again.");
     }

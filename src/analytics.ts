@@ -49,4 +49,26 @@ export function initAnalytics(): void {
   if (getChoice() === "yes") loadClarity();
 }
 
+/**
+ * Records a named step (a Clarity custom event) so the funnel can be read in Clarity:
+ * which button was used, whether files were added, whether an audit ran, whether a sign-up went through.
+ * Does nothing unless the visitor agreed to analytics. Never pass file contents or personal data.
+ */
+export type Step =
+  | "cta_sample_dashboard"
+  | "cta_check_files"
+  | "files_added"
+  | "audit_run"
+  | "signup_sent"
+  | "signup_failed";
+
+export function track(step: Step): void {
+  if (!loaded) return;
+  try {
+    (window as unknown as { clarity?: (...a: unknown[]) => void }).clarity?.("event", step);
+  } catch {
+    // analytics must never break the page
+  }
+}
+
 export const openCookieSettings = () => window.dispatchEvent(new Event("reconos-cookie-settings"));

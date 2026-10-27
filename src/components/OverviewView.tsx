@@ -5,6 +5,7 @@ import { MoneyTrail } from "./MoneyTrail";
 import { SignupForm } from "./SignupForm";
 import { PLANS } from "../pricing";
 import { LISTED } from "../engine/partners";
+import { track } from "../analytics";
 
 const list = (names: string[]) => `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 const GATEWAY_NAMES = LISTED.gateways.map((p) => p.name);
@@ -46,6 +47,7 @@ const FAQ = [
   { q: "My gateway sends one file for UPI and another for cards. Is that okay?", a: "Yes. Add them all. Files from the same gateway are combined, and if a file has no payment method column, ReconOS reads the method from the file name or asks you." },
   { q: "What's the difference between Claim and Check?", a: "Claim means your own files prove the money is owed, for example a delivered COD order with no payout. Check means something doesn't add up but needs your eyes first, for example a paid order missing from a gateway's report." },
   { q: "Will this work if I only have some of the files?", a: "Yes. Start with Shopify orders. Every extra file switches on more checks, and the dashboard tells you which checks didn't run and why." },
+  { q: "How much does it cost?", a: `The first audit is free and runs every check on one month of files. Monthly audits with claim emails are ${inr(PLANS[1].price)} a month for brands up to about 2,000 orders, or ${inr(PLANS[2].price)} a month up to about 15,000, during early access. Paid plans aren't open for payment yet.` },
   { q: "Is the sample data real?", a: "No. Indigo Loom is a made-up brand with a realistic month of orders and a known set of leaks, so you can see exactly what ReconOS finds." },
 ];
 
@@ -66,10 +68,10 @@ export function OverviewView({ result, setTab, source }: ViewCtx) {
             ReconOS reads the reports from every courier and gateway you use, traces each order from sale to payout to your bank, and writes the claim for each partner.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <Btn variant="primary" className="px-5 py-3 text-base" onClick={() => setTab("dashboard")}>
+            <Btn variant="primary" className="px-5 py-3 text-base" onClick={() => { track("cta_sample_dashboard"); setTab("dashboard"); }}>
               {source === "sample" ? "Open the sample dashboard" : "Open your dashboard"}
             </Btn>
-            <Btn className="px-5 py-3 text-base" onClick={() => setTab("upload")}>Check my own files</Btn>
+            <Btn className="px-5 py-3 text-base" onClick={() => { track("cta_check_files"); setTab("upload"); }}>Run a free audit on my files</Btn>
           </div>
           <p className="mt-4 flex items-center gap-2 text-sm text-slate-400">
             <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" aria-hidden="true"><path d="M5 9V7a5 5 0 0 1 10 0v2" fill="none" stroke="#34d399" strokeWidth="1.8" /><rect x="3.5" y="9" width="13" height="9" rx="2" fill="#34d399" /></svg>
@@ -227,6 +229,14 @@ export function OverviewView({ result, setTab, source }: ViewCtx) {
           </ul>
         </Panel>
       </section>
+
+      <Panel className="p-6">
+        <h2 className="text-xl font-semibold">Who's building this</h2>
+        <p className="mt-2 max-w-[75ch] text-slate-300">
+          ReconOS is built by Navya Juneja, who worked in payment gateway operations at PhonePe: routing payments across acquiring banks, onboarding merchants and reconciling settlements. The gateway and bank checks come from seeing where that money goes missing from the inside. Questions or a file ReconOS can't read? Write to{" "}
+          <a href="mailto:navyajuneja1000@gmail.com" className="text-emerald-300 underline-offset-4 hover:underline">navyajuneja1000@gmail.com</a>.
+        </p>
+      </Panel>
 
       <section aria-labelledby="faq">
         <h2 id="faq" className="text-2xl font-semibold tracking-tight sm:text-3xl">Questions founders ask</h2>

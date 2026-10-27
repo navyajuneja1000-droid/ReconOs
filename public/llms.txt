@@ -1,0 +1,41 @@
+# ReconOS
+
+> ReconOS finds the money an Indian D2C brand's couriers and payment gateways still owe it, and writes a claim email for each partner. It is for brands selling on their own Shopify store. Files are read in the browser and never uploaded.
+
+## What it does
+
+- Traces every Shopify order from sale to courier or gateway payout to the brand's bank statement.
+- Finds cash-on-delivery (COD) orders a courier delivered but never paid for, or paid short.
+- Finds shipping overcharges against the brand's rate card: above the agreed rate by zone and weight, charged twice, COD fee on prepaid orders, return charges on delivered orders.
+- Lists weight discrepancy charges that can still be disputed, closest deadline first. On Shiprocket the window is 7 working days.
+- Re-prices every gateway payment against the agreed rate for its payment method (UPI, debit and credit cards by network, RuPay, net banking, wallets, EMI), checks 18% GST on the fee, and finds payments never settled and refund mismatches.
+- Finds courier payouts and gateway settlements that never reached the bank.
+- Marks each finding Claim (the brand's own files prove the money is owed) or Check (needs a human look), and writes one ready-to-send email per partner.
+
+## Who it is for
+
+Indian D2C brands on Shopify with roughly 300 to 30,000 orders a month, a real share of COD orders, and no finance team checking payouts. Not built yet for Amazon, Flipkart or Meesho settlements, gateways outside India such as Stripe or PayPal, or large finance teams that need approvals and Tally export.
+
+## Partners supported (beta)
+
+- Payment gateways: Razorpay, PayU, Cashfree, PhonePe, Paytm, CCAvenue
+- Couriers and shipping aggregators: Shiprocket, Delhivery, Ekart, Blue Dart, Xpressbees, Shadowfax, DTDC, NimbusPost, iThink Logistics
+- Plus Shopify orders exports, bank statements as CSV or Excel, and "Other" for any partner not listed
+
+## Pricing (early access, Indian rupees)
+
+- Free audit: ₹0, every check on one month of files
+- Starter: ₹999 a month, up to about 2,000 orders, 2 couriers and 2 gateways
+- Growth: ₹2,499 a month, up to about 15,000 orders, every partner
+- Paid plans are not open for payment yet.
+
+## Privacy
+
+Reports and rate cards are read on the brand's own device. They are never sent to ReconOS or anyone else. Only the rates, brand name and partner list are remembered, in the brand's own browser.
+
+## Links
+
+- [Home and sample dashboard](https://www.reconos.in/)
+- [Privacy Policy](https://www.reconos.in/privacy)
+- [Terms of Use](https://www.reconos.in/terms)
+- [Contact](https://www.reconos.in/contact)
