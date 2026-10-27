@@ -17,6 +17,8 @@ import { PricingView } from "./components/PricingView";
 import { SiteFooter } from "./components/SiteFooter";
 import { WeightCheckView } from "./components/WeightCheckView";
 import { clearSaved, loadSaved, storeSaved } from "./engine/saved";
+import { TAB_TITLES } from "./seo";
+import { track } from "./analytics";
 
 export type Cards = Record<string, RateCard>;
 
@@ -63,6 +65,8 @@ export default function App() {
     window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
   }, []);
+
+  useEffect(() => { document.title = TAB_TITLES[tab] ?? TAB_TITLES.overview; }, [tab]);
 
   const setTab = (t: Tab) => {
     setTabState(t);
@@ -133,7 +137,7 @@ export default function App() {
             savedCount={Object.keys(fileCards).length}
             hadSaved={hadSaved}
             onForget={forgetSaved}
-            onRun={() => { setSource("files"); setPartner("all"); setTab("dashboard"); }}
+            onRun={() => { track("audit_run"); setSource("files"); setPartner("all"); setTab("dashboard"); }}
           />
         )}
         {tab === "orders" && <OrderTrailView {...ctx} />}

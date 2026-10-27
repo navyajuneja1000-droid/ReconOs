@@ -8,6 +8,7 @@ import { FILE_METHODS } from "../engine/instruments";
 import type { Dataset } from "../engine/types";
 import { Btn, Panel, PanelHead } from "../ui";
 import { CardStatus, RateCardEditor } from "./RateCardEditor";
+import { track } from "../analytics";
 
 export interface TrayItem extends Intake {
   uid: string;
@@ -90,6 +91,7 @@ export function UploadView({
         errs.push({ name: f.name, message: e instanceof UnsupportedFileError ? e.message : "This file couldn't be read. Export it again as CSV and add it once more." });
       }
     }
+    if (out.length) track("files_added");
     setItems((p) => [...p, ...out]);
     setErrors((p) => [...p, ...errs]);
     setBusy(false);

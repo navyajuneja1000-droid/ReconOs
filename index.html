@@ -20,9 +20,53 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Structured data. Prices must match src/pricing.ts (tests/seo.test.ts checks this). -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://www.reconos.in/#org",
+          "name": "ReconOS",
+          "url": "https://www.reconos.in/",
+          "email": "navyajuneja1000@gmail.com",
+          "address": { "@type": "PostalAddress", "addressLocality": "Gurugram", "addressRegion": "Haryana", "addressCountry": "IN" }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://www.reconos.in/#site",
+          "name": "ReconOS",
+          "url": "https://www.reconos.in/",
+          "inLanguage": "en-IN",
+          "publisher": { "@id": "https://www.reconos.in/#org" }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "ReconOS",
+          "url": "https://www.reconos.in/",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web browser",
+          "description": "Finds the money an Indian D2C brand's couriers and payment gateways owe it: unpaid or short-paid COD, shipping and weight overcharges, gateway fees above the agreed rate, and payouts that never reached the bank. Writes a claim email per partner. Files are read in the browser and never uploaded.",
+          "publisher": { "@id": "https://www.reconos.in/#org" },
+          "offers": [
+            { "@type": "Offer", "name": "Free audit", "price": "0", "priceCurrency": "INR" },
+            { "@type": "Offer", "name": "Starter", "price": "999", "priceCurrency": "INR", "availability": "https://schema.org/PreOrder" },
+            { "@type": "Offer", "name": "Growth", "price": "2499", "priceCurrency": "INR", "availability": "https://schema.org/PreOrder" }
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Readable before the app loads, and by crawlers that don't run JavaScript. The app replaces it. -->
+    <div id="root"><div style="max-width:1280px;margin:0 auto;padding:48px 24px;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#f1f5f9;background:#020617">
+      <p style="margin:0;color:#6ee7b7;font-size:14px">For Indian D2C brands on Shopify, with any mix of couriers and payment gateways</p>
+      <h1 style="margin:12px 0 0;max-width:18ch;font-size:40px;line-height:1.1;font-weight:700">Find the money your couriers and payment gateways still owe you.</h1>
+      <p style="margin:20px 0 0;max-width:58ch;font-size:18px;color:#cbd5e1">ReconOS reads the reports from every courier and gateway you use, traces each order from sale to payout to your bank, and writes the claim for each partner. It finds unpaid or short-paid COD, shipping and weight overcharges you can still dispute, gateway fees above your agreed rate, and payouts that never reached your bank. Runs in your browser. Your files are never uploaded.</p>
+      <p style="margin:16px 0 0;font-size:14px;color:#94a3b8">Works with Razorpay, PayU, Cashfree, PhonePe, Paytm, CCAvenue, Shiprocket, Delhivery, Ekart, Blue Dart, Xpressbees, Shadowfax, DTDC, NimbusPost and iThink Logistics. Free audit, then monthly plans from ₹999.</p>
+    </div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

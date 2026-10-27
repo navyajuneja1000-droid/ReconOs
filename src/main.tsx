@@ -6,11 +6,14 @@ import {LEGAL_BY_PATH} from './legal/content.ts';
 import './index.css';
 import {CookieBanner} from './components/CookieBanner.tsx';
 import {initAnalytics} from './analytics.ts';
+import {setCanonical} from './seo.ts';
 
 initAnalytics();
 
 // Policy pages live at real addresses (/privacy, /terms, ...) so they can be linked and checked directly.
-const legal = LEGAL_BY_PATH[window.location.pathname.replace(/\/+$/, '')];
+const path = window.location.pathname.replace(/\/+$/, '');
+const legal = LEGAL_BY_PATH[path];
+setCanonical(path, !!legal);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
