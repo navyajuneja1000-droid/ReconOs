@@ -43,6 +43,10 @@ interface Account {
   deleteAudit: (id: string) => Promise<void>;
   deleteAllData: () => Promise<string | null>;
   checkout: (plan: Exclude<PlanId, "free">) => Promise<string | null>;
+  /** opens Dodo's billing page (cancel, change card, invoices) */
+  billing: () => Promise<string | null>;
+  /** error from a checkout that started on its own after login */
+  checkoutError: string;
 }
 
 const Ctx = createContext<Account | null>(null);
@@ -51,6 +55,22 @@ export const useAccount = () => {
   if (!a) throw new Error("useAccount outside AccountProvider");
   return a;
 };
+
+// Remembers "send me to checkout" across the login (which may reload the page via the email link).
+const INTENT = "reconos.intent";
+const setIntent = (v: string | null) => { try { if (v) localStorage.setItem(INTENT, JSON.stringify({ v, at: Date.now() })); else localStorage.removeItem(INTENT); } catch { /* storage off */ } };
+const getIntent = (): string | null => {
+  try {
+    const r = JSON.parse(localStorage.getItem(INTENT) ?? "null") as { v: string; at: number } | null;
+    return r && Date.now() - r.at < 30 * 60 * 1000 ? r.v : null; // forget after 30 minutes
+  } catch { return null; }
+};
+
+async function postWithToken(path: string, token: string, body?: unknown) {
+  const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: body ? JSON.stringify(body) : undefined });
+  const b = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+  return { ok: res.ok && !!b.url, url: b.url, error: b.error };
+}
 
 const friendly = (msg: string, step: "send" | "verify" | "other" = "other") =>
   /rate limit|too many/i.test(msg) ? "Too many tries. Wait a minute and try again."
@@ -64,6 +84,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [audits, setAudits] = useState<SavedAudit[]>([]);
   const [loginFor, setLoginFor] = useState<LoginReason>(null);
+  const [checkoutError, setCheckoutError] = useState("");
 
   const refresh = useCallback(async () => {
     if (!supabase) return;
@@ -86,6 +107,31 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   }, []);
   useEffect(() => { void refresh(); }, [session?.user.id, refresh]);
 
+  const checkout = useCallback(async (plan: Exclude<PlanId, "free">) => {
+    if (!supabase) return "Accounts aren't switched on yet.";
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) { setIntent(`checkout:${plan}`); setLoginFor("upgrade"); return null; }
+    try {
+      const r = await postWithToken("/api/checkout", token, { plan });
+      if (!r.ok) return r.error ?? "Checkout couldn't start. Try again in a minute.";
+      window.location.href = r.url!;
+      return null;
+    } catch {
+      return "Checkout couldn't start. Check your connection and try again.";
+    }
+  }, []);
+
+  // after logging in from a "Choose plan" button, carry on to checkout without a second click
+  useEffect(() => {
+    if (!session || !profile) return;
+    const intent = getIntent();
+    if (!intent?.startsWith("checkout:")) return;
+    setIntent(null);
+    if (isPaid(profile)) return;
+    void checkout(intent.slice(9) as Exclude<PlanId, "free">).then((e) => setCheckoutError(e ?? ""));
+  }, [session, profile, checkout]);
+
   const value = useMemo<Account>(() => ({
     enabled: !!supabase,
     ready,
@@ -96,7 +142,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     audits,
     loginFor,
     askLogin: (why) => setLoginFor(why),
-    closeLogin: () => setLoginFor(null),
+    closeLogin: () => { setLoginFor(null); setIntent(null); },
     sendCode: async (email) => {
       if (!supabase) return "Accounts aren't switched on yet.";
       const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: window.location.origin + "/#account" } });
@@ -147,19 +193,20 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       await refresh();
       return a.error || c.error ? "Some data couldn't be deleted. Email us and we'll remove it." : null;
     },
-    checkout: async (plan) => {
+    checkout,
+    checkoutError,
+    billing: async () => {
       if (!supabase || !session) return "Log in first.";
       try {
-        const res = await fetch("/api/checkout", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ plan }) });
-        const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-        if (!res.ok || !body.url) return body.error ?? "Checkout couldn't start. Try again in a minute.";
-        window.location.href = body.url;
+        const r = await postWithToken("/api/billing-portal", session.access_token);
+        if (!r.ok) return r.error ?? "The billing page couldn't open. Try again in a minute.";
+        window.location.href = r.url!;
         return null;
       } catch {
-        return "Checkout couldn't start. Check your connection and try again.";
+        return "The billing page couldn't open. Check your connection and try again.";
       }
     },
-  }), [ready, session, profile, audits, loginFor, refresh]);
+  }), [ready, session, profile, audits, loginFor, refresh, checkout, checkoutError]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -7,6 +7,7 @@ import { intakeTable, runAuditFull } from "../src/engine/intake";
 // a fake Supabase that records what the server functions do
 const calls: { op: string; table?: string; args?: unknown }[] = [];
 let profileByEmail: { user_id: string } | null = null;
+let profileById: { dodo_customer_id: string | null } | null = null;
 let authUser: { id: string; email: string } | null = { id: "u1", email: "a@brand.in" };
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
@@ -16,7 +17,10 @@ vi.mock("@supabase/supabase-js", () => ({
     },
     from: (table: string) => ({
       update: (args: unknown) => ({ eq: async () => { calls.push({ op: "update", table, args }); return { error: null }; } }),
-      select: () => ({ ilike: () => ({ maybeSingle: async () => ({ data: profileByEmail }) }) }),
+      select: () => ({
+        ilike: () => ({ maybeSingle: async () => ({ data: profileByEmail }) }),
+        eq: () => ({ maybeSingle: async () => ({ data: profileById }) }),
+      }),
     }),
   }),
 }));
@@ -72,7 +76,7 @@ function signed(body: object) {
 
 describe("server functions", () => {
   beforeEach(() => {
-    calls.length = 0; profileByEmail = null; authUser = { id: "u1", email: "a@brand.in" };
+    calls.length = 0; profileByEmail = null; profileById = null; authUser = { id: "u1", email: "a@brand.in" };
     Object.assign(process.env, { SUPABASE_URL: "https://x.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "svc", DODO_WEBHOOK_SECRET: secret, DODO_PAYMENTS_API_KEY: "key", DODO_PRODUCT_STARTER: "pdt_s", DODO_PRODUCT_GROWTH: "pdt_g", DODO_MODE: "test", SITE_URL: "https://www.reconos.in" });
   });
 
@@ -122,6 +126,39 @@ describe("server functions", () => {
     expect((await POST(new Request("https://x", { method: "POST", body: JSON.stringify({ plan: "starter" }) }))).status).toBe(401);
     authUser = { id: "u1", email: "a@brand.in" };
     expect((await POST(new Request("https://x", { method: "POST", headers: { Authorization: "Bearer t" }, body: JSON.stringify({ plan: "gold" }) }))).status).toBe(400);
+  });
+
+  it("only sells ReconOS Pro now, not the old Growth plan", async () => {
+    const { POST } = await import("../api/checkout");
+    const r = await POST(new Request("https://x", { method: "POST", headers: { Authorization: "Bearer t" }, body: JSON.stringify({ plan: "growth" }) }));
+    expect(r.status).toBe(400);
+  });
+
+  it("still recognises an old Growth subscription so nothing breaks", async () => {
+    const { POST } = await import("../api/dodo-webhook");
+    await POST(signed({ type: "subscription.renewed", data: { subscription_id: "sub_2", product_id: "pdt_g", customer: { customer_id: "cus_2" }, metadata: { user_id: "u1" } } }));
+    expect(calls[0]).toMatchObject({ op: "update", args: { plan: "growth", plan_status: "active" } });
+  });
+
+  it("opens the Dodo billing page for the logged-in user's own customer id", async () => {
+    profileById = { dodo_customer_id: "cus_7" };
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ link: "https://test.customer.dodopayments.com/portal/x" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { POST } = await import("../api/billing-portal");
+    const r = await POST(new Request("https://x", { method: "POST", headers: { Authorization: "Bearer t" } }));
+    expect(await r.json()).toEqual({ url: "https://test.customer.dodopayments.com/portal/x" });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://test.dodopayments.com/customers/cus_7/customer-portal/session?return_url=" + encodeURIComponent("https://www.reconos.in/#account"));
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer key");
+    vi.unstubAllGlobals();
+  });
+
+  it("refuses the billing page without a login or a past payment", async () => {
+    const { POST } = await import("../api/billing-portal");
+    authUser = null;
+    expect((await POST(new Request("https://x", { method: "POST" }))).status).toBe(401);
+    authUser = { id: "u1", email: "a@brand.in" }; profileById = { dodo_customer_id: null };
+    expect((await POST(new Request("https://x", { method: "POST", headers: { Authorization: "Bearer t" } }))).status).toBe(404);
   });
 
   it("deletes only the logged-in user's account", async () => {

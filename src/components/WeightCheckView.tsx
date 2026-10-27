@@ -223,7 +223,7 @@ export function WeightCheckView({
 
       {!usingSample && locked && (
         <Locked title={`${open.length} weight charge${open.length === 1 ? "" : "s"} found in your file, worth ${inr(sum(open))}`}>
-          The weekly weight check is part of the paid plans: every charge you can still dispute, closest deadline first, with a download and reminders.
+          The weekly weight check is part of ReconOS Pro: every charge you can still dispute, closest deadline first, with a download and reminders.
         </Locked>
       )}
       {(usingSample || !locked) && <>

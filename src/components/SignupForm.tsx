@@ -41,7 +41,7 @@ export function SignupForm({ id = "signup" }: { id?: string }) {
       const res = await fetch(ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ _subject: "New ReconOS early access sign-up", _replyto: email.trim(), email: email.trim(), store: store.trim(), monthlyOrders: orders, source: "reconos-site", consent: "Agreed to Privacy Policy (version 26 October 2026) and to receive emails about ReconOS early access", consentAt: new Date().toISOString() }),
+        body: JSON.stringify({ _subject: "New ReconOS early access sign-up", _replyto: email.trim(), email: email.trim(), store: store.trim(), monthlyOrders: orders, source: "reconos-site", consent: "Agreed to Privacy Policy (version 27 October 2026) and to receive emails about ReconOS early access", consentAt: new Date().toISOString() }),
       });
       if (!res.ok) throw new Error(String(res.status));
       setState("done");

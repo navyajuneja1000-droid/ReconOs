@@ -186,7 +186,7 @@ export default function App() {
         {tab === "dashboard" && <DashboardView {...ctx} />}
         {tab === "partners" && <PartnersView {...ctx} />}
         {tab === "upload" && blocked && (
-          <div className="mb-6"><Locked title="Upgrade to audit another month">{blocked} Paid plans include unlimited audits, ready-to-send claim emails and the weekly weight check.</Locked></div>
+          <div className="mb-6"><Locked title="Upgrade to audit another month">{blocked}</Locked></div>
         )}
         {tab === "upload" && (
           <UploadView

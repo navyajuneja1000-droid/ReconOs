@@ -14,8 +14,8 @@ export const inrCompact = (n: number) => {
 export const fmtDay = (d: Date | null | undefined) =>
   d ? d.toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" }) : "";
 
-export function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <section className={`min-w-0 rounded-xl border border-slate-800 bg-slate-900/60 ${className}`}>{children}</section>;
+export function Panel({ children, className = "", id, role }: { children: React.ReactNode; className?: string; id?: string; role?: string }) {
+  return <section id={id} role={role} className={`min-w-0 rounded-xl border border-slate-800 bg-slate-900/60 ${className}`}>{children}</section>;
 }
 
 export function PanelHead({ title, sub, right }: { title: string; sub?: string; right?: React.ReactNode }) {

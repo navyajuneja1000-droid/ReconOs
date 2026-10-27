@@ -16,7 +16,7 @@ export const LEGAL = {
   phone: "+91 85568 17288",
   place: "Gurugram, Haryana, India",
   courts: "Gurugram, Haryana",
-  updated: "26 October 2026",
+  updated: "27 October 2026",
 };
 
 export type Block = { p: string } | { ul: string[] };
@@ -69,7 +69,7 @@ export const PRIVACY: LegalDoc = {
           "Emails you send us: your email address, name if you include it, and what you write.",
           "Basic technical data: when you visit the website, our hosting provider automatically records standard server log information such as your IP address, browser type, the pages requested and the time of the request. When the page loads its fonts, Google's font service receives your IP address in the same way.",
           "Website usage data, only if you allow it: Microsoft Clarity records how you use the website, such as pages viewed, clicks, scrolling, mouse movement, device and browser type, approximate location from your IP address, and a cookie ID. Pages that show your own files and results, and anything you type, are hidden from it.",
-          "Payments (only once paid plans open): your billing name, email and the details needed for an invoice. Card, UPI and bank details are entered with our payment gateway and are never stored by us.",
+          "Payments: your billing name, email and the details needed for an invoice. Card, UPI and bank details are entered with our payment gateway and are never stored by us.",
         ] },
         { p: "We do not ask for, and ask you not to send us, sensitive information such as passwords, card numbers, bank account numbers or health information." },
       ],
@@ -202,7 +202,7 @@ export const TERMS: LegalDoc = {
     {
       h: "2. What ReconOS does",
       blocks: [
-        { p: "ReconOS reads reports you provide (for example from Shopify, couriers, payment gateways and your bank) and the rates you confirm, compares them, and points out amounts that look missing, short-paid or overcharged. It can also draft emails you may send to your partners and compare how your couriers perform. The free audit is free to use. Paid plans, when available, are described on our Pricing page." },
+        { p: "ReconOS reads reports you provide (for example from Shopify, couriers, payment gateways and your bank) and the rates you confirm, compares them, and points out amounts that look missing, short-paid or overcharged. It can also draft emails you may send to your partners and compare how your couriers perform. The free audit is free to use. The paid plan, ReconOS Pro, is described on our Pricing page." },
       ],
     },
     {
@@ -254,7 +254,7 @@ export const TERMS: LegalDoc = {
         { p: "You need an account to run an audit on your own files. The free plan includes one audit month. Paid plans add unlimited audits, ready-to-send claim emails and the weekly weight check." },
         { ul: [
           "Paid plans are sold through Dodo Payments, which acts as merchant of record: it is the seller on your invoice, takes the payment and handles applicable taxes. Its own terms also apply to the purchase;",
-          "prices are shown on the Pricing page in Indian rupees, with any applicable taxes added at checkout;",
+          "prices are shown on the Pricing page in Indian rupees, plus GST (18%), and the tax is shown at checkout before you pay;",
           "monthly plans are billed in advance and renew each month until you cancel;",
           "we will give at least 30 days' notice by email before any price increase affects you;",
           "cancellations and refunds follow our Refund and Cancellation Policy;",
@@ -341,7 +341,7 @@ export const REFUNDS: LegalDoc = {
         { p: "Paid plans are sold and billed by Dodo Payments, our merchant of record." },
         { ul: [
           "Plans are billed monthly, in advance.",
-          `You can cancel at any time using the link in your Dodo Payments receipt email, or by emailing ${E} from the email address on your account.`,
+          `You can cancel at any time with Manage billing on your ReconOS account page, with the link in your Dodo Payments receipt email, or by emailing ${E} from the email address on your account.`,
           "Cancelling stops future payments. You keep access until the end of the month you have already paid for.",
           "We do not refund part-used months, except in the cases below.",
         ] },

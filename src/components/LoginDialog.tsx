@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useAccount } from "../account/AccountContext";
 import { Btn } from "../ui";
+import { proPrice } from "../pricing";
 
 const WHY = {
   audit: { title: "Log in to run your audit", sub: "Your first audit is free. We save the results and your rates so next month is quicker. Your report files still never leave this browser." },
-  upgrade: { title: "Log in to choose a plan", sub: "Your plan is linked to your login, so it works on any device." },
+  upgrade: { title: "Log in to start ReconOS Pro", sub: `${proPrice()}. After you log in we'll take you straight to secure checkout. Your plan is linked to your login, so it works on any device.` },
   account: { title: "Log in to ReconOS", sub: "See your saved audits, rates and plan." },
 } as const;
 

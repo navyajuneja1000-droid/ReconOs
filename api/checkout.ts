@@ -7,7 +7,8 @@ export async function POST(req: Request) {
   const user = await userFrom(req, db);
   if (!user?.email) return json({ error: "Please log in again." }, 401);
   const { plan } = (await req.json().catch(() => ({}))) as { plan?: string };
-  const product = productFor(plan ?? "");
+  // only ReconOS Pro (internal id "starter") is on sale
+  const product = plan === "starter" ? productFor(plan) : "";
   if (!product || !env("DODO_PAYMENTS_API_KEY")) return json({ error: "That plan isn't available yet." }, 400);
   const site = env("SITE_URL") || "https://www.reconos.in";
   const res = await fetch(`${dodoBase()}/checkouts`, {

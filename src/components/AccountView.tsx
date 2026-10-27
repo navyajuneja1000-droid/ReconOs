@@ -1,35 +1,34 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAccount } from "../account/AccountContext";
 import { monthLabel, storedCsv } from "../account/plan";
 import { partnerName } from "../engine/partners";
 import { download } from "../engine/readFile";
-import { PLANS } from "../pricing";
+import { PRO, proPrice, withGst } from "../pricing";
 import { Btn, inr, Panel, PanelHead } from "../ui";
 
-const PLAN_NAME: Record<string, string> = { free: "Free", starter: "Starter", growth: "Growth" };
+const PLAN_NAME: Record<string, string> = { free: "Free", starter: "ReconOS Pro", growth: "ReconOS Pro" };
 const day = (s: string | null) => (s ? new Date(s).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "");
 
-/** Starter and Growth buttons. Logs in first when needed, then opens Dodo checkout. */
+/** The ReconOS Pro button. Logs in first when needed, then opens Dodo checkout. */
 export function UpgradeButtons({ compact = false }: { compact?: boolean }) {
   const a = useAccount();
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const go = async (plan: "starter" | "growth") => {
-    if (!a.session) return a.askLogin("upgrade");
-    setBusy(plan); setErr("");
-    const e = await a.checkout(plan);
-    setBusy(null); if (e) setErr(e);
+  const go = async () => {
+    setBusy(true); setErr("");
+    const e = await a.checkout("starter");
+    setBusy(false); if (e) setErr(e);
   };
   return (
     <div className="grid gap-2">
-      <div className="flex flex-wrap gap-2">
-        {PLANS.filter((p) => p.price).map((p) => (
-          <Btn key={p.id} id={`upgrade-${p.id}`} variant={"highlight" in p && p.highlight ? "primary" : "secondary"} onClick={() => go(p.id as "starter" | "growth")} disabled={!!busy}>
-            {busy === p.id ? "Opening checkout" : `${compact ? "" : "Get "}${p.name} · ${inr(p.price)}${p.period}`}
-          </Btn>
-        ))}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Btn id="upgrade-starter" variant="primary" onClick={go} disabled={busy}>
+          {busy ? "Opening checkout" : `${compact ? "Upgrade" : `Get ${PRO.name}`} · ${proPrice()}`}
+        </Btn>
+        <a href="#pricing" className="text-sm text-emerald-300 hover:underline">Compare plans</a>
       </div>
-      {err && <p role="alert" className="text-sm text-rose-300">{err}</p>}
+      {!compact && <p className="text-xs text-slate-400">{inr(withGst(PRO.price))} a month including 18% GST. Cancel any time.</p>}
+      {(err || a.checkoutError) && <p role="alert" className="text-sm text-rose-300">{err || a.checkoutError}</p>}
     </div>
   );
 }
@@ -38,17 +37,41 @@ export function UpgradeButtons({ compact = false }: { compact?: boolean }) {
 export function Locked({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <Panel className="grid gap-3 border-emerald-500/40 bg-emerald-950/20 p-5" >
-      <h3 className="font-semibold">{title}</h3>
-      {children && <p className="text-sm text-slate-300">{children}</p>}
+      <div>
+        <h3 className="font-semibold">{title}</h3>
+        {children && <p className="mt-1 text-sm text-slate-300">{children}</p>}
+        <p className="mt-1 text-sm text-slate-400">{PRO.name} includes unlimited audit months, a ready-to-send claim email for each partner and the weekly weight check.</p>
+      </div>
       <UpgradeButtons compact />
     </Panel>
   );
+}
+
+/** What Dodo sent back in the address after checkout, read once. */
+function paymentReturn(): "paid" | "failed" | null {
+  const q = new URLSearchParams(window.location.search);
+  if (!q.get("subscription_id") && !q.get("payment_id")) return null;
+  const st = (q.get("status") ?? "").toLowerCase();
+  window.history.replaceState(null, "", window.location.pathname + "#account");
+  return st === "active" || st === "succeeded" ? "paid" : "failed";
 }
 
 export function AccountView() {
   const a = useAccount();
   const [confirming, setConfirming] = useState<"data" | "account" | null>(null);
   const [msg, setMsg] = useState("");
+  const [ret] = useState(paymentReturn);
+  const [waited, setWaited] = useState(0);
+  const [billingErr, setBillingErr] = useState("");
+  const [billingBusy, setBillingBusy] = useState(false);
+
+  // after paying, the plan switches on when Dodo confirms (usually a few seconds); check every 2 seconds for a minute
+  const activating = ret === "paid" && !a.paid;
+  useEffect(() => {
+    if (!activating || waited >= 30) return;
+    const t = setTimeout(() => { void a.refresh(); setWaited((w) => w + 1); }, 2000);
+    return () => clearTimeout(t);
+  }, [activating, waited, a]);
 
   if (!a.enabled) return <Panel className="p-8 text-center text-slate-300">Accounts open soon.</Panel>;
   if (!a.session) {
@@ -81,17 +104,49 @@ export function AccountView() {
         <Btn onClick={() => a.signOut()}>Log out</Btn>
       </div>
 
+      {ret === "paid" && (
+        <Panel id="payment-banner" role="status" className={`p-5 ${a.paid ? "border-emerald-500/50 bg-emerald-950/30" : "border-slate-700"}`}>
+          {a.paid ? (
+            <>
+              <h2 className="font-semibold text-emerald-200">Payment received. You're on {PRO.name}.</h2>
+              <p className="mt-1 text-sm text-slate-300">Unlimited audits, claim emails and the weekly weight check are now on. Dodo Payments has emailed your receipt.</p>
+            </>
+          ) : waited < 30 ? (
+            <>
+              <h2 className="font-semibold">Payment received. Switching on {PRO.name}…</h2>
+              <p className="mt-1 text-sm text-slate-300">This usually takes a few seconds. You don't need to do anything.</p>
+            </>
+          ) : (
+            <>
+              <h2 className="font-semibold">Your payment went through, but your plan isn't showing yet.</h2>
+              <p className="mt-1 text-sm text-slate-300">Refresh this page in a minute. If it still says Free, write to us with your Dodo Payments receipt and we'll switch it on.</p>
+            </>
+          )}
+        </Panel>
+      )}
+      {ret === "failed" && !a.paid && (
+        <Panel id="payment-banner" role="alert" className="border-rose-500/40 bg-rose-500/5 p-5">
+          <h2 className="font-semibold text-rose-200">The payment didn't go through.</h2>
+          <p className="mt-1 text-sm text-slate-300">You haven't been charged for a plan. You can try again below with the same or a different card.</p>
+        </Panel>
+      )}
+
       <Panel>
         <PanelHead title="Plan" right={<span id="plan-badge" className={`rounded-md px-2 py-0.5 text-xs font-medium ${a.paid ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-800 text-slate-300"}`}>{PLAN_NAME[plan]}{plan !== "free" && status !== "active" ? ` · ${status.replace("_", " ")}` : ""}</span>} />
         <div className="grid gap-3 px-5 py-4 text-sm text-slate-300">
           {a.paid ? (
             <>
-              <p>{status === "cancelled" ? `Cancelled. You keep paid features until ${day(p?.current_period_end ?? null)}.` : `Renews ${p?.current_period_end ? `on ${day(p.current_period_end)}` : "monthly"}.`} Unlimited audits, claim emails and the weekly weight check are on.</p>
-              <p className="text-slate-400">To change or cancel your plan, use the link in your Dodo Payments receipt email, or write to us. See the <a href="/refunds" className="text-emerald-300 hover:underline">Refund and Cancellation Policy</a>.</p>
+              <p>{status === "cancelled" ? `Cancelled. You keep ${PRO.name} until ${day(p?.current_period_end ?? null)}.` : `${proPrice()}. Renews ${p?.current_period_end ? `on ${day(p.current_period_end)}` : "monthly"}.`} Unlimited audits, claim emails and the weekly weight check are on.</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <Btn id="manage-billing" disabled={billingBusy} onClick={async () => { setBillingBusy(true); setBillingErr(""); const e = await a.billing(); setBillingBusy(false); if (e) setBillingErr(e); }}>{billingBusy ? "Opening" : "Manage billing"}</Btn>
+                <span className="text-slate-400">Cancel, change your card or download invoices.</span>
+              </div>
+              {billingErr && <p role="alert" className="text-rose-300">{billingErr}</p>}
+              <p className="text-slate-400">Payments are handled by Dodo Payments. See the <a href="/refunds" className="text-emerald-300 hover:underline">Refund and Cancellation Policy</a>.</p>
             </>
           ) : (
             <>
-              <p>{plan !== "free" && status === "on_hold" ? "Your last payment didn't go through, so paid features are paused. Update your payment from your Dodo Payments email, or choose a plan again." : "The free plan includes one audit month. Upgrade for unlimited audits, ready-to-send claim emails and the weekly weight check."}</p>
+              <p>{plan !== "free" && status === "on_hold" ? "Your last payment didn't go through, so paid features are paused. Update your payment from your Dodo Payments email, or choose a plan again." : `The free plan includes one audit month. ${PRO.name} adds unlimited audit months, a ready-to-send claim email for each partner and the weekly weight check.`}</p>
               <UpgradeButtons />
             </>
           )}
@@ -135,7 +190,7 @@ export function AccountView() {
             </div>
           )}
           {msg && <p role="status" className="text-emerald-300">{msg}</p>}
-          {a.paid && <p className="text-xs text-slate-400">Deleting your account doesn't cancel a paid plan by itself. Cancel it first from your Dodo Payments email.</p>}
+          {a.paid && <p className="text-xs text-slate-400">Deleting your account doesn't cancel a paid plan by itself. Cancel it first with Manage billing above.</p>}
         </div>
       </Panel>
     </div>
