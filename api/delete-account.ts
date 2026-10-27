@@ -1,4 +1,4 @@
-import { admin, json, userFrom } from "./_lib";
+import { admin, json, userFrom } from "./_lib.js";
 
 /** Deletes the logged-in user; their profile, rate cards and audits go with it (on delete cascade). */
 export async function POST(req: Request) {

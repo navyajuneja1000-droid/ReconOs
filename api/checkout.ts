@@ -1,4 +1,4 @@
-import { admin, dodoBase, env, json, productFor, userFrom } from "./_lib";
+import { admin, dodoBase, env, json, productFor, userFrom } from "./_lib.js";
 
 /** Starts a Dodo checkout for the logged-in user's chosen plan and returns its URL. */
 export async function POST(req: Request) {

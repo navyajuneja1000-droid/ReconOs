@@ -1,6 +1,6 @@
 import { Webhook } from "standardwebhooks";
-import { admin, env, json, planForProduct } from "./_lib";
-import { statusFromEvent } from "../src/account/plan";
+import { admin, env, json, planForProduct } from "./_lib.js";
+import { statusFromEvent } from "../src/account/plan.js";
 
 interface SubData {
   subscription_id?: string;
